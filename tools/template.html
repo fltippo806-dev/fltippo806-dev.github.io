@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>投放数据看板</title>
+<style>
+:root{--ink:#26333F;--sub:#66727E;--line:#E3E8EE;--bg:#F4F6F9;--card:#FFFFFF;
+--blue:#2E75B6;--deep:#1F4E79;--fb:#3B6FD4;--gg:#3A9E63;--tt:#8A5CC7;
+--good:#1F8A5A;--goodbg:#E5F4EC;--bad:#C0392B;--badbg:#FBEAE7;--warn:#B7791F;--warnbg:#FCF3DF;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6}
+.topbar{position:sticky;top:0;z-index:50;background:var(--card);border-bottom:1px solid var(--line);padding:10px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.topbar h1{font-size:17px;color:var(--deep)}
+.topbar .upd{font-size:12px;color:var(--sub)}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+.nav a{padding:4px 12px;border-radius:14px;font-size:12px;color:var(--sub);text-decoration:none;border:1px solid var(--line);background:#fff}
+.nav a.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 24px 60px}
+section{margin-bottom:28px}
+h2{font-size:16px;color:var(--deep);margin:26px 0 6px;padding-left:9px;border-left:4px solid var(--blue)}
+.note{font-size:12px;color:var(--sub);margin-bottom:10px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card .lbl{font-size:12px;color:var(--sub)}
+.card .val{font-size:24px;font-weight:700;margin:2px 0}
+.card .cmp{font-size:12px;color:var(--sub)}
+.badge{display:inline-block;padding:0 6px;border-radius:9px;font-size:11px;font-weight:600}
+.b-good{background:var(--goodbg);color:var(--good)}.b-bad{background:var(--badbg);color:var(--bad)}.b-flat{background:#EEF1F5;color:var(--sub)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{background:#F0F4F8;color:#3D4B59;text-align:left;padding:7px 10px;white-space:nowrap;cursor:pointer;user-select:none;border-bottom:2px solid var(--line)}
+th .arr{font-size:10px;color:var(--blue)}
+td{padding:6px 10px;border-bottom:1px solid #EEF1F5;white-space:nowrap}
+tr:hover td{background:#F6FAFF}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;min-width:52px;text-align:center;padding:0 7px;border-radius:10px;font-weight:600;font-size:12px}
+.p-good{background:var(--goodbg);color:var(--good)}.p-warn{background:var(--warnbg);color:var(--warn)}.p-bad{background:var(--badbg);color:var(--bad)}.p-na{color:#98A2AC}
+.chip{display:inline-block;padding:0 8px;border-radius:10px;font-size:11px;font-weight:600}
+.c-red{background:var(--badbg);color:var(--bad)}.c-green{background:var(--goodbg);color:var(--good)}
+.sharebar{display:inline-block;height:8px;background:var(--blue);border-radius:4px;vertical-align:middle;margin-right:6px}
+.filters{display:flex;gap:10px;margin:8px 0 10px;flex-wrap:wrap;font-size:12px}
+select{padding:3px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px;background:#fff;color:var(--ink)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--sub);margin:4px 0 8px;flex-wrap:wrap}
+.dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:baseline}
+svg text{font-family:inherit}
+.mono{font-size:11px;color:#98A2AC}
+footer{font-size:11px;color:#98A2AC;border-top:1px solid var(--line);padding-top:10px;margin-top:30px}
+#toTop{position:fixed;right:22px;bottom:22px;width:36px;height:36px;border-radius:50%;background:var(--blue);color:#fff;border:none;font-size:16px;cursor:pointer;display:none}
+@media print{.topbar,#toTop{display:none}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>投放数据看板</h1><span class="upd" id="upd"></span>
+  <nav class="nav" id="nav">
+    <a href="#sec-kpi" class="on">总览</a><a href="#sec-trend">趋势</a><a href="#sec-app">App×渠道</a>
+    <a href="#sec-cc">国家</a><a href="#sec-curve">回收曲线</a><a href="#sec-camp">Campaign</a>
+    <a href="#sec-owner">投手</a><a href="#sec-def">口径</a>
+  </nav>
+</div>
+<div class="wrap">
+
+<section id="sec-kpi">
+  <h2>核心指标（近 7 天 vs 前 7 天）</h2>
+  <div class="note" id="kpi-note"></div>
+  <div class="cards" id="kpi-cards"></div>
+</section>
+
+<section id="sec-trend">
+  <h2>大盘趋势</h2>
+  <div class="panel">
+    <div style="font-weight:600;margin-bottom:2px">日消耗（分渠道堆叠）× 当日 D0 ROAS · 近 56 天</div>
+    <div class="legend"><span><span class="dot" style="background:var(--fb)"></span>Facebook</span><span><span class="dot" style="background:var(--gg)"></span>Google</span><span><span class="dot" style="background:var(--tt)"></span>TikTok</span><span><span class="dot" style="background:#E67E22;width:14px;height:3px;border-radius:2px"></span>D0 ROAS（右轴）</span></div>
+    <div id="chart-daily"></div>
+  </div>
+  <div style="height:14px"></div>
+  <div class="panel">
+    <div style="font-weight:600;margin-bottom:2px">周度 D7 ROAS 分渠道（仅统计 D7 窗口已走完的完整周）</div>
+    <div class="legend"><span><span class="dot" style="background:var(--fb)"></span>FB</span><span><span class="dot" style="background:var(--gg)"></span>GG</span><span><span class="dot" style="background:var(--tt)"></span>TT</span><span style="color:#98A2AC">虚线 = 1.0 回本线</span></div>
+    <div id="chart-weekly"></div>
+  </div>
+</section>
+
+<section id="sec-app">
+  <h2>App × 渠道</h2>
+  <div class="note">各列 ROAS 使用各自"已成熟"的 28 天批次窗口（详见口径章）。点击表头排序。</div>
+  <div class="panel">
+    <div style="font-weight:600;margin-bottom:6px">App 汇总</div>
+    <table id="tbl-apps"></table>
+  </div>
+  <div style="height:14px"></div>
+  <div class="panel">
+    <div style="font-weight:600;margin-bottom:6px">App × 渠道明细</div>
+    <div class="filters"><label>App：<select id="f-app"></select></label></div>
+    <table id="tbl-appch"></table>
+  </div>
+</section>
+
+<section id="sec-cc">
+  <h2>国家（近 28 天）</h2>
+  <div class="panel"><table id="tbl-cc"></table></div>
+</section>
+
+<section id="sec-curve">
+  <h2>批次回收曲线（D0 → D30）</h2>
+  <div class="note">每个点取该 App 对应成熟窗口的 28 天批次平均；虚线为 1.0 回本线。</div>
+  <div class="panel"><div class="legend" id="curve-legend"></div><div id="chart-curve"></div></div>
+</section>
+
+<section id="sec-camp">
+  <h2>Campaign 明细（近 14 天有消耗，按消耗排序）</h2>
+  <div class="note" id="camp-note"></div>
+  <div class="filters">
+    <label>App：<select id="cf-app"></select></label>
+    <label>渠道：<select id="cf-ch"></select></label>
+    <label>投手：<select id="cf-owner"></select></label>
+    <label>信号：<select id="cf-flag"><option value="">全部</option><option value="red">🔴 关注止损</option><option value="green">🟢 可放量</option></select></label>
+  </div>
+  <div class="panel"><table id="tbl-camp"></table></div>
+</section>
+
+<section id="sec-owner">
+  <h2>投手汇总（近 14 天）</h2>
+  <div class="note">归属按 campaign 命名前缀解析；子账户变体（如 Susanf03 / Susanp / Susan0601-2）已并入主名。</div>
+  <div class="panel"><table id="tbl-owner"></table></div>
+</section>
+
+<section id="sec-def">
+  <h2>口径说明（v1.0 · 已拍板）</h2>
+  <div class="panel" style="font-size:13px">
+    <ul style="padding-left:18px;display:grid;gap:6px">
+      <li><b>消耗</b> = 渠道侧消耗 network_cost（FB/GG/TT 统一；TikTok 归因口径消耗恒为 0，故全渠道统一采用渠道侧）。</li>
+      <li><b>注册</b> = signup_complete 事件；<b>CPI</b> = 消耗÷安装；<b>注册成本 CPA</b> = 消耗÷注册。</li>
+      <li><b>D0 付费率</b> = D0 付费用户 ÷ 注册。</li>
+      <li><b>DX ROAS</b> = 批次 X 日累计收入 ÷ 对应消耗（未扣退款）。仅统计"窗口已走完"的成熟批次：D3 列用截至 T-3 的 28 天批次，D7 列用截至 T-7，D30 列用截至 T-30，以此类推——因此不同列的统计窗口不同，横向对比同列、不要跨列对比时间。</li>
+      <li><b>自然量</b>（Organic / Google Organic Search）不参与任何 ROI 计算；Kita 未投放，不纳入看板。</li>
+      <li><b>颜色标尺</b>：D0 ROAS ≥0.6 绿 / 0.3–0.6 黄 / &lt;0.3 红；D7 ≥1.0 绿 / 0.7–1.0 黄 / &lt;0.7 红；D30 ≥1.3 绿 / 1.0–1.3 黄 / &lt;1.0 红。为经验参考值，正式基准表产出后替换。</li>
+      <li><b>Campaign 信号（参考）</b>：🔴 关注止损 = 近14天消耗≥$100 且 D0 ROAS&lt;0.30；🟢 可放量 = 消耗≥$80 且 D0 ROAS≥0.60。正式止损/放量线待基准建模后生效。</li>
+      <li>数据 T+1；每天早上 09:00（新加坡时间）自动更新。</li>
+    </ul>
+  </div>
+</section>
+
+<footer id="foot"></footer>
+</div>
+<button id="toTop" title="返回顶部">↑</button>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const DATA = JSON.parse(document.getElementById('data').textContent);
+const $ = id => document.getElementById(id);
+const fmt$ = v => v==null?'–':'$'+Math.round(v).toLocaleString('en-US');
+const fmt2 = v => v==null?'–':(+v).toFixed(2);
+const fmtP = v => v==null?'–':(v*100).toFixed(1)+'%';
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function pill(v, kind){
+  if(v==null) return '<span class="pill p-na">–</span>';
+  const th = {d0:[0.3,0.6], d7:[0.7,1.0], d30:[1.0,1.3]}[kind];
+  const cls = v>=th[1]?'p-good':(v>=th[0]?'p-warn':'p-bad');
+  return '<span class="pill '+cls+'">'+v.toFixed(2)+'</span>';
+}
+function delta(cur, prev, costType){
+  if(cur==null||prev==null||!prev) return '<span class="badge b-flat">–</span>';
+  const pct=(cur-prev)/Math.abs(prev)*100;
+  if(Math.abs(pct)<1) return '<span class="badge b-flat">持平</span>';
+  const worse = costType ? pct>0 : pct<0;
+  return '<span class="badge '+(worse?'b-bad':'b-good')+'">'+(pct>0?'+':'')+pct.toFixed(0)+'%</span>';
+}
+/* ===== KPI ===== */
+(function(){
+  const k=DATA.kpi, c=k.cur7, p=k.prev7;
+  $('kpi-note').textContent = '窗口：'+k.win7[0]+' ~ '+k.win7[1]+'（对比 '+k.pwin7[0]+' ~ '+k.pwin7[1]+'）；D7 ROAS 用成熟窗 '+k.roas_d7.win[0]+' ~ '+k.roas_d7.win[1]+' 的批次';
+  const items=[
+    ['消耗', fmt$(c.cost), delta(c.cost,p.cost,false)+' <span class="mono">前值 '+fmt$(p.cost)+'</span>'],
+    ['安装', c.installs.toLocaleString(), delta(c.installs,p.installs,false)+' <span class="mono">前值 '+p.installs.toLocaleString()+'</span>'],
+    ['CPI', fmt2(c.cpi), delta(c.cpi,p.cpi,true)+' <span class="mono">前值 '+fmt2(p.cpi)+'</span>'],
+    ['注册成本', fmt2(c.cpa), delta(c.cpa,p.cpa,true)+' <span class="mono">前值 '+fmt2(p.cpa)+'</span>'],
+    ['D0 付费率', fmtP(c.payrate), delta(c.payrate,p.payrate,false)+' <span class="mono">前值 '+fmtP(p.payrate)+'</span>'],
+    ['D0 ROAS', fmt2(c.roas_d0), delta(c.roas_d0,p.roas_d0,false)+' <span class="mono">前值 '+fmt2(p.roas_d0)+'</span>'],
+    ['D7 ROAS（成熟窗）', fmt2(k.roas_d7.cur), delta(k.roas_d7.cur,k.roas_d7.prev,false)+' <span class="mono">前窗 '+fmt2(k.roas_d7.prev)+'</span>'],
+  ];
+  $('kpi-cards').innerHTML = items.map(i=>'<div class="card"><div class="lbl">'+i[0]+'</div><div class="val">'+i[1]+'</div><div class="cmp">'+i[2]+'</div></div>').join('');
+})();
+/* ===== 日消耗堆叠 + D0 ROAS ===== */
+(function(){
+  const d=DATA.daily, W=1080, H=260, padL=46, padR=44, padT=12, padB=26;
+  const iw=(W-padL-padR)/d.length;
+  const maxC=Math.max(...d.map(r=>r.fb+r.gg+r.tt+r.other))*1.1||1;
+  const roasVals=d.map(r=>r.roas).filter(v=>v!=null);
+  const maxR=Math.max(1,...roasVals)*1.15;
+  const y=v=>padT+(H-padT-padB)*(1-v/maxC);
+  const yr=v=>padT+(H-padT-padB)*(1-v/maxR);
+  let bars='', line='', lp=[];
+  d.forEach((r,i)=>{
+    const x=padL+i*iw; let acc=0;
+    [['fb','var(--fb)'],['gg','var(--gg)'],['tt','var(--tt)']].forEach(([k,col])=>{
+      if(r[k]>0){const h=(H-padT-padB)*r[k]/maxC;
+        bars+='<rect x="'+(x+0.5)+'" y="'+(y(acc+r[k])).toFixed(1)+'" width="'+(iw-1.4).toFixed(1)+'" height="'+h.toFixed(1)+'" fill="'+col+'"><title>'+r.d+' '+k.toUpperCase()+' $'+r[k].toLocaleString()+'</title></rect>';
+        acc+=r[k];}
+    });
+    if(r.roas!=null) lp.push([x+iw/2, yr(r.roas), r.d, r.roas]);
+  });
+  line='<polyline fill="none" stroke="#E67E22" stroke-width="2" points="'+lp.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')+'"/>'
+      +lp.map(p=>'<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.4" fill="#E67E22"><title>'+p[2]+' D0 ROAS '+p[3].toFixed(2)+'</title></circle>').join('');
+  let axis='';
+  for(let i=0;i<=4;i++){const v=maxC*i/4, yy=y(v);
+    axis+='<line x1="'+padL+'" y1="'+yy+'" x2="'+(W-padR)+'" y2="'+yy+'" stroke="#EEF1F5"/><text x="'+(padL-6)+'" y="'+(yy+4)+'" font-size="10" fill="#98A2AC" text-anchor="end">'+(v/1000).toFixed(0)+'k</text>';
+    const rv=maxR*i/4;
+    axis+='<text x="'+(W-padR+6)+'" y="'+(yr(rv)+4)+'" font-size="10" fill="#E67E22">'+rv.toFixed(1)+'</text>';}
+  let xt='';
+  d.forEach((r,i)=>{if(i%7===0) xt+='<text x="'+(padL+i*iw+iw/2)+'" y="'+(H-8)+'" font-size="10" fill="#98A2AC" text-anchor="middle">'+r.d+'</text>';});
+  $('chart-daily').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:1080px">'+axis+bars+line+xt+'</svg>';
+})();
+/* ===== 周度 D7 ROAS ===== */
+(function(){
+  const d=DATA.weekly_d7, W=620, H=200, padL=36, padR=12, padT=12, padB=24;
+  const vals=d.flatMap(r=>[r.fb,r.gg,r.tt]).filter(v=>v!=null);
+  const maxV=Math.max(1.1,...vals)*1.1, minV=0;
+  const x=i=>padL+(W-padL-padR)*(d.length===1?0.5:i/(d.length-1));
+  const y=v=>padT+(H-padT-padB)*(1-(v-minV)/(maxV-minV));
+  let g='';
+  for(let i=0;i<=3;i++){const v=maxV*i/3;g+='<line x1="'+padL+'" y1="'+y(v)+'" x2="'+(W-padR)+'" y2="'+y(v)+'" stroke="#EEF1F5"/><text x="'+(padL-5)+'" y="'+(y(v)+4)+'" font-size="10" fill="#98A2AC" text-anchor="end">'+v.toFixed(1)+'</text>';}
+  g+='<line x1="'+padL+'" y1="'+y(1)+'" x2="'+(W-padR)+'" y2="'+y(1)+'" stroke="#C0392B" stroke-dasharray="4 3" opacity="0.5"/>';
+  [['fb','var(--fb)'],['gg','var(--gg)'],['tt','var(--tt)']].forEach(([k,col])=>{
+    const pts=d.map((r,i)=>r[k]!=null?[x(i),y(r[k]),r.w,r[k]]:null).filter(Boolean);
+    g+='<polyline fill="none" stroke="'+col+'" stroke-width="2" points="'+pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')+'"/>';
+    g+=pts.map(p=>'<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.6" fill="'+col+'"><title>'+p[2]+' 周 '+k.toUpperCase()+' D7 ROAS '+p[3].toFixed(2)+'</title></circle>').join('');
+  });
+  let xt=d.map((r,i)=>'<text x="'+x(i)+'" y="'+(H-6)+'" font-size="10" fill="#98A2AC" text-anchor="middle">'+r.w+'</text>').join('');
+  $('chart-weekly').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:620px">'+g+xt+'</svg>';
+})();
+/* ===== 表格公用: 排序 ===== */
+function makeTable(el, cols, rows, renderRow){
+  let sortK=null, asc=false;
+  function render(){
+    const rs=[...rows];
+    if(sortK!=null) rs.sort((a,b)=>{const va=a[sortK]??-1e18, vb=b[sortK]??-1e18; return asc?(va>vb?1:-1):(va<vb?1:-1);});
+    el.innerHTML='<thead><tr>'+cols.map(c=>'<th data-k="'+(c.k??'')+'">'+c.t+(sortK===c.k?' <span class="arr">'+(asc?'▲':'▼')+'</span>':'')+'</th>').join('')+'</tr></thead><tbody>'
+      +rs.map(renderRow).join('')+'</tbody>';
+    el.querySelectorAll('th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(!k)return;
+      if(sortK===k)asc=!asc;else{sortK=k;asc=false;}render();});
+  }
+  render();
+  return {render, setRows(r){rows=r;render();}};
+}
+const appRow = r=>'<tr><td><b>'+esc(r.k.join(' · '))+'</b></td><td class="num">'+fmt$(r.cost)+'</td><td class="num">'+r.installs.toLocaleString()+'</td><td class="num">'+fmt2(r.cpi)+'</td><td class="num">'+fmtP(r.signup_rate)+'</td><td class="num">'+fmtP(r.payrate)+'</td><td class="num">'+fmtP(r.ret_d1)+'</td><td>'+pill(r.roas_d0,'d0')+'</td><td>'+pill(r.roas_d3,'d0')+'</td><td>'+pill(r.roas_d7,'d7')+'</td><td>'+pill(r.roas_d14,'d7')+'</td><td>'+pill(r.roas_d30,'d30')+'</td></tr>';
+const appCols=[{t:'维度'},{t:'消耗(28d)',k:'cost'},{t:'安装',k:'installs'},{t:'CPI',k:'cpi'},{t:'注册率',k:'signup_rate'},{t:'D0付费率',k:'payrate'},{t:'D1留存',k:'ret_d1'},{t:'D0 ROAS',k:'roas_d0'},{t:'D3',k:'roas_d3'},{t:'D7',k:'roas_d7'},{t:'D14',k:'roas_d14'},{t:'D30',k:'roas_d30'}];
+makeTable($('tbl-apps'), appCols, DATA.apps, appRow);
+(function(){
+  const sel=$('f-app');
+  sel.innerHTML='<option value="">全部</option>'+DATA.apps.map(r=>'<option>'+esc(r.k[0])+'</option>').join('');
+  const t=makeTable($('tbl-appch'), appCols, DATA.app_channel, appRow);
+  sel.onchange=()=>t.setRows(DATA.app_channel.filter(r=>!sel.value||r.k[0]===sel.value));
+})();
+/* ===== 国家 ===== */
+makeTable($('tbl-cc'),
+  [{t:'国家'},{t:'消耗(28d)',k:'cost'},{t:'占比',k:'share'},{t:'CPI',k:'cpi'},{t:'D0付费率',k:'payrate'},{t:'D0 ROAS',k:'roas_d0'},{t:'D7 ROAS',k:'roas_d7'},{t:'D7 前窗',k:'roas_d7_prev'}],
+  DATA.countries,
+  r=>'<tr><td><b>'+esc(r.cc)+'</b></td><td class="num">'+fmt$(r.cost)+'</td><td><span class="sharebar" style="width:'+Math.round((r.share||0)*120)+'px"></span>'+fmtP(r.share)+'</td><td class="num">'+fmt2(r.cpi)+'</td><td class="num">'+fmtP(r.payrate)+'</td><td>'+pill(r.roas_d0,'d0')+'</td><td>'+pill(r.roas_d7,'d7')+'</td><td class="num">'+fmt2(r.roas_d7_prev)+' '+delta(r.roas_d7,r.roas_d7_prev,false)+'</td></tr>');
+/* ===== 回收曲线 ===== */
+(function(){
+  const cs=DATA.curves, cols=['#2E75B6','#3A9E63','#E67E22','#8A5CC7'];
+  $('curve-legend').innerHTML=cs.map((c,i)=>'<span><span class="dot" style="background:'+cols[i%4]+'"></span>'+esc(c.app)+'</span>').join('')+'<span style="color:#98A2AC">虚线 = 1.0 回本线</span>';
+  const W=620,H=230,padL=36,padR=14,padT=10,padB=24;
+  const all=cs.flatMap(c=>c.pts.map(p=>p.y)).filter(v=>v!=null);
+  const maxV=Math.max(1.2,...all)*1.08;
+  const x=v=>padL+(W-padL-padR)*v/30;
+  const y=v=>padT+(H-padT-padB)*(1-v/maxV);
+  let g='';
+  for(let i=0;i<=4;i++){const v=maxV*i/4;g+='<line x1="'+padL+'" y1="'+y(v)+'" x2="'+(W-padR)+'" y2="'+y(v)+'" stroke="#EEF1F5"/><text x="'+(padL-5)+'" y="'+(y(v)+4)+'" font-size="10" fill="#98A2AC" text-anchor="end">'+v.toFixed(1)+'</text>';}
+  g+='<line x1="'+padL+'" y1="'+y(1)+'" x2="'+(W-padR)+'" y2="'+y(1)+'" stroke="#C0392B" stroke-dasharray="4 3" opacity="0.5"/>';
+  cs.forEach((c,i)=>{
+    const pts=c.pts.filter(p=>p.y!=null);
+    g+='<polyline fill="none" stroke="'+cols[i%4]+'" stroke-width="2" points="'+pts.map(p=>x(p.x).toFixed(1)+','+y(p.y).toFixed(1)).join(' ')+'"/>';
+    g+=pts.map(p=>'<circle cx="'+x(p.x).toFixed(1)+'" cy="'+y(p.y).toFixed(1)+'" r="2.6" fill="'+cols[i%4]+'"><title>'+esc(c.app)+' D'+p.x+' ROAS '+p.y.toFixed(2)+'</title></circle>').join('');
+  });
+  g+=[0,1,3,7,14,30].map(v=>'<text x="'+x(v)+'" y="'+(H-6)+'" font-size="10" fill="#98A2AC" text-anchor="middle">D'+v+'</text>').join('');
+  $('chart-curve').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:620px">'+g+'</svg>';
+})();
+/* ===== Campaign ===== */
+(function(){
+  const rows=DATA.campaigns;
+  const rest=DATA.campaigns_rest;
+  $('camp-note').textContent='展示消耗 Top '+rows.length+' 条'+(rest?('；其余 '+rest.n+' 条小额合计 $'+rest.cost.toLocaleString()+'（加权 D0 ROAS '+rest.rev_share_note.toFixed(2)+'）'):'')+'。D7 ROAS 用已成熟批次（T-21 ~ T-7），新开盘显示 – 属正常。';
+  const opts=(arr,id)=>{$(id).innerHTML='<option value="">全部</option>'+[...new Set(arr)].sort().map(v=>'<option>'+esc(v)+'</option>').join('');};
+  opts(rows.map(r=>r.app),'cf-app'); opts(rows.map(r=>r.ch),'cf-ch'); opts(rows.map(r=>r.owner),'cf-owner');
+  const flagChip=f=>f==='red'?'<span class="chip c-red">关注止损</span>':(f==='green'?'<span class="chip c-green">可放量</span>':'');
+  const t=makeTable($('tbl-camp'),
+    [{t:'Campaign'},{t:'App'},{t:'渠道'},{t:'投手'},{t:'消耗(14d)',k:'cost'},{t:'昨日',k:'yday'},{t:'安装',k:'installs'},{t:'CPI',k:'cpi'},{t:'D0 ROAS',k:'roas_d0'},{t:'D7 ROAS',k:'roas_d7'},{t:'信号'}],
+    rows,
+    r=>'<tr><td title="'+esc(r.name)+'">'+esc(r.name.length>42?r.name.slice(0,40)+'…':r.name)+'</td><td>'+esc(r.app)+'</td><td>'+r.ch+'</td><td>'+esc(r.owner)+'</td><td class="num">'+fmt$(r.cost)+'</td><td class="num">'+fmt$(r.yday)+'</td><td class="num">'+r.installs.toLocaleString()+'</td><td class="num">'+fmt2(r.cpi)+'</td><td>'+pill(r.roas_d0,'d0')+'</td><td>'+pill(r.roas_d7,'d7')+'</td><td>'+flagChip(r.flag)+'</td></tr>');
+  const apply=()=>t.setRows(rows.filter(r=>(!$('cf-app').value||r.app===$('cf-app').value)&&(!$('cf-ch').value||r.ch===$('cf-ch').value)&&(!$('cf-owner').value||r.owner===$('cf-owner').value)&&(!$('cf-flag').value||r.flag===$('cf-flag').value)));
+  ['cf-app','cf-ch','cf-owner','cf-flag'].forEach(id=>$(id).onchange=apply);
+})();
+/* ===== 投手 ===== */
+makeTable($('tbl-owner'),
+  [{t:'投手'},{t:'消耗(14d)',k:'cost'},{t:'在投条数',k:'n'},{t:'CPI',k:'cpi'},{t:'加权 D0 ROAS',k:'roas_d0'}],
+  DATA.owners,
+  r=>'<tr><td><b>'+esc(r.owner)+'</b></td><td class="num">'+fmt$(r.cost)+'</td><td class="num">'+r.n+'</td><td class="num">'+fmt2(r.cpi)+'</td><td>'+pill(r.roas_d0,'d0')+'</td></tr>');
+/* ===== 其他 ===== */
+$('upd').textContent='数据截至 '+DATA.end+' · 更新于 '+DATA.updated;
+$('foot').textContent='自检：121 天付费消耗合计 $'+DATA.check.cost_121d.toLocaleString()+'；口径 v1.0；数据源 Adjust Report Service。';
+const secs=[...document.querySelectorAll('section')], links=[...document.querySelectorAll('.nav a')];
+addEventListener('scroll',()=>{
+  const yv=scrollY+90; let cur=secs[0].id;
+  secs.forEach(s=>{if(s.offsetTop<=yv)cur=s.id;});
+  links.forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+cur));
+  document.getElementById('toTop').style.display=scrollY>500?'block':'none';
+});
+document.getElementById('toTop').onclick=()=>scrollTo({top:0,behavior:'smooth'});
+</script>
+<!--BUILD_SCRIPT_B64:__BUILD_B64__-->
+</body>
+</html>

@@ -1,1 +1,3 @@
-# alan-ua.github.io
+# board
+
+静态看板托管仓库。`index.html` 为加密页面，数据无密码不可读。`tools/` 为构建脚本（不含任何密钥）。每日由自动任务更新。
