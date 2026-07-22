@@ -248,13 +248,23 @@ def build(main, camp):
         p = tok.capitalize()
         cands = [b for b in persons if len(b) >= 3 and p.startswith(b)]
         return min(cands, key=len) if cands else None
+    # 归属规则(复盘 skill 口径): 命名=账户前缀_产品_…_操作者, 操作者优先。
+    # 含 yz→yz; 含 lio→lio; 同现=归属冲突; 其余人名须唯一命中; 多名同现且无 yz/lio→未归属
     def owner(name):
-        for tok in re.split(r"[_\s]+", (name or "").strip()):
-            m = re.match(r"^([A-Za-z]+)", tok)
-            if m and m.group(1).lower() not in app_names:
-                c = canon(m.group(1))
-                if c: return c
-        return "未标注"
+        toks = re.split(r"[_\s]+", (name or "").strip())
+        alphas = [m.group(1) for t in toks for m in [re.match(r"^([A-Za-z]+)", t)] if m]
+        low = [a.lower() for a in alphas]
+        has_yz, has_lio = "yz" in low, "lio" in low
+        if has_yz and has_lio: return "归属冲突"
+        if has_yz: return "yz"
+        if has_lio: return "lio"
+        found = set()
+        for a in alphas:
+            if a.lower() in app_names: continue
+            c = canon(a)
+            if c: found.add(c)
+        if len(found) == 1: return found.pop()
+        return "未归属(多名)" if found else "未标注"
     campaigns = []
     for k, a in cagg.items():
         if a["network_cost"] < 20: continue
