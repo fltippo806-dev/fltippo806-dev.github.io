@@ -14,6 +14,21 @@
 import json, sys, re, urllib.request, urllib.parse, datetime as dt
 from collections import defaultdict
 
+# ===== 基准模型常量 (2026-07 校准, 每月第1周随放大系数校准一起更新) =====
+# D7→D75 放大系数 (13个月消耗加权, 回测平均误差6.2%)
+MULT75_CH = {("Blaze","FB"):1.41,("Blaze","GG"):1.64,("Blaze","TT"):1.68,
+ ("Bliss","FB"):1.61,("Bliss","GG"):1.58,("Bliss","TT"):1.12,
+ ("Bondy","FB"):1.69,("Bondy","GG"):1.37,("Bondy","TT"):1.34,
+ ("Chille","FB"):1.33,("Chille","GG"):1.76,("Chille","TT"):1.07,
+ ("Flare","FB"):1.49,("Flare","GG"):1.74,
+ ("Rush","FB"):1.49,("Rush","GG"):1.66,("Rush","TT"):1.23,
+ ("Tippo","FB"):1.42,("Tippo","GG"):1.41,("Tippo","TT"):1.86}
+MULT75_APP = {"Blaze":1.59,"Bliss":1.60,"Bondy":1.45,"Chille":1.57,"Flare":1.71,"Rush":1.58,"Tippo":1.47}
+MULT30_APP = {"Blaze":1.37,"Bliss":1.37,"Bondy":1.31,"Chille":1.32,"Flare":1.44,"Rush":1.32,"Tippo":1.33}
+R70_APP = {"Blaze":2.15,"Bliss":1.86,"Bondy":1.57,"Chille":1.42,"Flare":2.04,"Rush":1.58,"Tippo":1.92}  # D7/D0 倍率
+SOP_STOP, SOP_WATCH, SOP_SCALE = 0.55, 0.8, 1.2  # 三档线系数
+BENCH_VER = "2026-07 校准"
+
 METRICS = ("network_cost,network_impressions,network_clicks,installs,"
            "signup_complete_events,paying_users_d0,retained_users_d1,retained_users_d3,"
            "retained_users_d7,revenue_total_d0,revenue_total_d1,revenue_total_d3,"
@@ -243,6 +258,76 @@ def build(main, camp):
                           "roas_d0": d0,
                           "roas_d7": ratio(a.get("m_rev7", 0), a.get("m_cost", 0)),
                           "flag": flag})
+    # ===== 基准与模型预估 =====
+    def app_tgt(app):
+        m75 = MULT75_APP.get(app); m30 = MULT30_APP.get(app); r70 = R70_APP.get(app)
+        if not m75: return None
+        t7 = 1 / m75
+        return {"tgt7": round(t7, 3), "tgt0": round(t7 / r70, 3) if r70 else None,
+                "tgt30": round(m30 / m75, 3) if m30 else None,
+                "stop": round(t7 / r70 * SOP_STOP, 3) if r70 else None,
+                "watch": round(t7 / r70 * SOP_WATCH, 3) if r70 else None,
+                "scale": round(t7 / r70 * SOP_SCALE, 3) if r70 else None}
+    bench_apps = {a: t for a in MULT75_APP for t in [app_tgt(a)] if t}
+    w7b = agg(paid, *win(28, 7), keys=["app", "_ch"]); w0b = agg(paid, *win(28), keys=["app", "_ch"])
+    bench_chs = []
+    for k, a in sorted(w7b.items(), key=lambda x: -x[1]["network_cost"]):
+        if a["network_cost"] < 800 or not a["installs"]: continue
+        m = MULT75_CH.get(k) or MULT75_APP.get(k[0])
+        if not m: continue
+        cur7 = a["revenue_total_d7"] / a["network_cost"]
+        rev7i = a["revenue_total_d7"] / a["installs"]
+        b0 = w0b.get(k, {})
+        cpi_now = b0.get("network_cost", 0) / b0["installs"] if b0.get("installs") else a["network_cost"] / a["installs"]
+        allow = rev7i * m
+        bench_chs.append({"app": k[0], "ch": k[1], "mult": m, "tgt7": round(1 / m, 3),
+                          "cur7": round(cur7, 3), "cpi": round(cpi_now, 2), "rev7i": round(rev7i, 2),
+                          "allow": round(allow, 2), "room": round(allow / cpi_now - 1, 3) if cpi_now else None,
+                          "pred75": round(cur7 * m, 2), "cost28": round(b0.get("network_cost", 0))})
+
+    # ===== 模型建议 (渠道级 + campaign 级) =====
+    suggestions = []
+    for b in bench_chs:
+        if b["room"] is None: continue
+        tag = f'{b["app"]}·{b["ch"]}'
+        if b["room"] <= -0.05:
+            suggestions.append({"level": "cut", "scope": "渠道", "obj": tag, "cost": b["cost28"],
+                "cur": f'CPI ${b["cpi"]} / D7 ROAS {b["cur7"]}', "pred": f'预测 D75 回收 {b["pred75"]}',
+                "action": f'降出价：把 CPI 压到 ${b["allow"]} 以内（当前超回本线 {abs(round(b["room"]*100))}%），压不下来则收缩预算',
+                "why": f'可承受 CPI = 每安装 D7 收入 ${b["rev7i"]} × 系数 {b["mult"]}'})
+        elif b["room"] >= 0.2 and b["cur7"] >= b["tgt7"]:
+            cap = round(b["allow"] * 0.9, 2)
+            suggestions.append({"level": "scale", "scope": "渠道", "obj": tag, "cost": b["cost28"],
+                "cur": f'CPI ${b["cpi"]} / D7 ROAS {b["cur7"]}', "pred": f'预测 D75 回收 {b["pred75"]}',
+                "action": f'可加价放量：出价上限 ${cap}（可承受 ${b["allow"]} 留 10% 安全垫），空间 +{round(b["room"]*100)}%',
+                "why": f'当前 D7 {b["cur7"]} ≥ 目标 {b["tgt7"]}，且价格远低于回本线'})
+    for c in campaigns:
+        t = bench_apps.get(c["app"])
+        if not t or c["roas_d0"] is None: continue
+        pred = round(c["roas_d0"] * R70_APP[c["app"]] * MULT75_APP[c["app"]], 2)
+        if c["cost"] >= 100 and c["roas_d0"] < t["stop"]:
+            c["flag"] = "stop"
+            suggestions.append({"level": "stop", "scope": "Campaign", "obj": c["name"], "owner": c["owner"], "cost": c["cost"],
+                "cur": f'D0 ROAS {c["roas_d0"]:.2f} < 止损线 {t["stop"]}', "pred": f'预测 D75 回收仅 {pred}',
+                "action": "建议当日停投（投手可申诉一次，负责人裁决）", "why": f'{c["app"]} 三档线（{BENCH_VER}）'})
+        elif c["cost"] >= 100 and c["roas_d0"] < t["watch"]:
+            c["flag"] = "watch"
+            suggestions.append({"level": "watch", "scope": "Campaign", "obj": c["name"], "owner": c["owner"], "cost": c["cost"],
+                "cur": f'D0 ROAS {c["roas_d0"]:.2f} < 观察线 {t["watch"]}', "pred": f'预测 D75 回收 {pred}',
+                "action": "预算下调 30% 挂观察，3 天未回线按止损处理", "why": f'{c["app"]} 三档线（{BENCH_VER}）'})
+        elif c["cost"] >= 80 and c["roas_d0"] >= t["scale"]:
+            c["flag"] = "scale"
+            suggestions.append({"level": "scale", "scope": "Campaign", "obj": c["name"], "owner": c["owner"], "cost": c["cost"],
+                "cur": f'D0 ROAS {c["roas_d0"]:.2f} ≥ 放量线 {t["scale"]}', "pred": f'预测 D75 回收 {pred}',
+                "action": "日预算 +50% 阶梯放量，连续 2 天保持可再加", "why": f'{c["app"]} 三档线（{BENCH_VER}）'})
+        else:
+            c["flag"] = ""
+    order = {"stop": 0, "cut": 1, "watch": 2, "scale": 3}
+    suggestions.sort(key=lambda s: (order[s["level"]], -s["cost"]))
+    keep = [s for s in suggestions if s["level"] != "scale"][:14]
+    keep += [s for s in suggestions if s["level"] == "scale"][:8]
+    suggestions = keep
+
     campaigns.sort(key=lambda x: -x["cost"])
     rest = campaigns[60:]
     campaigns = campaigns[:60]
@@ -267,6 +352,8 @@ def build(main, camp):
             "app_channel": app_channel, "apps": apps_tot, "countries": countries,
             "curves": curves, "campaigns": campaigns, "campaigns_rest": rest_row,
             "owners": owner_rows,
+            "bench": {"ver": BENCH_VER, "apps": bench_apps, "chs": bench_chs},
+            "suggestions": suggestions,
             "check": {"cost_121d": round(sum(f(r, "network_cost") for r in paid))}}
 
 if __name__ == "__main__":

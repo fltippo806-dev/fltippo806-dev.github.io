@@ -35,9 +35,15 @@ td{padding:6px 10px;border-bottom:1px solid #EEF1F5;white-space:nowrap}
 tr:hover td{background:#F6FAFF}
 td.num{text-align:right;font-variant-numeric:tabular-nums}
 .pill{display:inline-block;min-width:52px;text-align:center;padding:0 7px;border-radius:10px;font-weight:600;font-size:12px}
-.p-good{background:var(--goodbg);color:var(--good)}.p-warn{background:var(--warnbg);color:var(--warn)}.p-bad{background:var(--badbg);color:var(--bad)}.p-na{color:#98A2AC}
+.p-good{background:var(--goodbg);color:var(--good)}.p-warn{background:var(--warnbg);color:var(--warn)}.p-bad{background:var(--badbg);color:var(--bad)}.p-na{color:#98A2AC}.p-n{background:#EEF1F5;color:#3D4B59}
 .chip{display:inline-block;padding:0 8px;border-radius:10px;font-size:11px;font-weight:600}
-.c-red{background:var(--badbg);color:var(--bad)}.c-green{background:var(--goodbg);color:var(--good)}
+.c-red{background:var(--badbg);color:var(--bad)}.c-green{background:var(--goodbg);color:var(--good)}.c-amber{background:var(--warnbg);color:var(--warn)}.c-blue{background:#E3EEF9;color:var(--deep)}
+.sug{border-left:4px solid var(--line);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:10px}
+.sug .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px}
+.sug .obj{font-weight:700}
+.sug .body{font-size:12.5px;color:#3D4B59;margin-top:4px}
+.sug .why{font-size:11.5px;color:#98A2AC;margin-top:2px}
+.sug.l-stop{border-left-color:var(--bad)}.sug.l-cut{border-left-color:#E67E22}.sug.l-watch{border-left-color:var(--warn)}.sug.l-scale{border-left-color:var(--good)}
 .sharebar{display:inline-block;height:8px;background:var(--blue);border-radius:4px;vertical-align:middle;margin-right:6px}
 .filters{display:flex;gap:10px;margin:8px 0 10px;flex-wrap:wrap;font-size:12px}
 select{padding:3px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px;background:#fff;color:var(--ink)}
@@ -54,9 +60,9 @@ footer{font-size:11px;color:#98A2AC;border-top:1px solid var(--line);padding-top
 <div class="topbar">
   <h1>投放数据看板</h1><span class="upd" id="upd"></span>
   <nav class="nav" id="nav">
-    <a href="#sec-kpi" class="on">总览</a><a href="#sec-trend">趋势</a><a href="#sec-app">App×渠道</a>
+    <a href="#sec-kpi" class="on">总览</a><a href="#sec-sug">建议</a><a href="#sec-trend">趋势</a><a href="#sec-app">App×渠道</a>
     <a href="#sec-cc">国家</a><a href="#sec-curve">回收曲线</a><a href="#sec-camp">Campaign</a>
-    <a href="#sec-owner">投手</a><a href="#sec-def">口径</a>
+    <a href="#sec-owner">投手</a><a href="#sec-bench">基准线</a><a href="#sec-def">口径</a>
   </nav>
 </div>
 <div class="wrap">
@@ -65,6 +71,12 @@ footer{font-size:11px;color:#98A2AC;border-top:1px solid var(--line);padding-top
   <h2>核心指标（近 7 天 vs 前 7 天）</h2>
   <div class="note" id="kpi-note"></div>
   <div class="cards" id="kpi-cards"></div>
+</section>
+
+<section id="sec-sug">
+  <h2>今日建议（预估模型生成）</h2>
+  <div class="note" id="sug-note"></div>
+  <div id="sug-list"></div>
 </section>
 
 <section id="sec-trend">
@@ -115,7 +127,7 @@ footer{font-size:11px;color:#98A2AC;border-top:1px solid var(--line);padding-top
     <label>App：<select id="cf-app"></select></label>
     <label>渠道：<select id="cf-ch"></select></label>
     <label>投手：<select id="cf-owner"></select></label>
-    <label>信号：<select id="cf-flag"><option value="">全部</option><option value="red">🔴 关注止损</option><option value="green">🟢 可放量</option></select></label>
+    <label>信号：<select id="cf-flag"><option value="">全部</option><option value="stop">🔴 止损</option><option value="watch">🟡 观察</option><option value="scale">🟢 放量</option></select></label>
   </div>
   <div class="panel"><table id="tbl-camp"></table></div>
 </section>
@@ -126,8 +138,22 @@ footer{font-size:11px;color:#98A2AC;border-top:1px solid var(--line);padding-top
   <div class="panel"><table id="tbl-owner"></table></div>
 </section>
 
+<section id="sec-bench">
+  <h2>基准线（<span id="bench-ver"></span>）</h2>
+  <div class="note">可承受 CPI = 每安装 D7 收入 × D7→D75 放大系数；回本目标 = D75 回收 ≥ 100%。系数每月第 1 周校准。</div>
+  <div class="panel">
+    <div style="font-weight:600;margin-bottom:6px">App × 渠道 基准与预估</div>
+    <table id="tbl-bench"></table>
+  </div>
+  <div style="height:14px"></div>
+  <div class="panel">
+    <div style="font-weight:600;margin-bottom:6px">Campaign 三档线（判定指标：累耗达门槛后的 D0 ROAS）</div>
+    <table id="tbl-sop"></table>
+  </div>
+</section>
+
 <section id="sec-def">
-  <h2>口径说明（v1.0 · 已拍板）</h2>
+  <h2>口径说明（v1.1 · 已拍板）</h2>
   <div class="panel" style="font-size:13px">
     <ul style="padding-left:18px;display:grid;gap:6px">
       <li><b>消耗</b> = 渠道侧消耗 network_cost（FB/GG/TT 统一；TikTok 归因口径消耗恒为 0，故全渠道统一采用渠道侧）。</li>
@@ -135,8 +161,8 @@ footer{font-size:11px;color:#98A2AC;border-top:1px solid var(--line);padding-top
       <li><b>D0 付费率</b> = D0 付费用户 ÷ 注册。</li>
       <li><b>DX ROAS</b> = 批次 X 日累计收入 ÷ 对应消耗（未扣退款）。仅统计"窗口已走完"的成熟批次：D3 列用截至 T-3 的 28 天批次，D7 列用截至 T-7，D30 列用截至 T-30，以此类推——因此不同列的统计窗口不同，横向对比同列、不要跨列对比时间。</li>
       <li><b>自然量</b>（Organic / Google Organic Search）不参与任何 ROI 计算；Kita 未投放，不纳入看板。</li>
-      <li><b>颜色标尺</b>：D0 ROAS ≥0.6 绿 / 0.3–0.6 黄 / &lt;0.3 红；D7 ≥1.0 绿 / 0.7–1.0 黄 / &lt;0.7 红；D30 ≥1.3 绿 / 1.0–1.3 黄 / &lt;1.0 红。为经验参考值，正式基准表产出后替换。</li>
-      <li><b>Campaign 信号（参考）</b>：🔴 关注止损 = 近14天消耗≥$100 且 D0 ROAS&lt;0.30；🟢 可放量 = 消耗≥$80 且 D0 ROAS≥0.60。正式止损/放量线待基准建模后生效。</li>
+      <li><b>颜色标尺</b>：按各 App（×渠道）的目标线相对着色——达到目标为绿、达到目标的 80%~100% 为黄、不足 80% 为红；D3/D14 未设目标线，显示灰色。目标线见"基准线"章。</li>
+      <li><b>Campaign 信号与今日建议</b>：由预估模型按各 App 三档线生成——🔴 止损（累耗≥$100 且 D0 低于止损线）、🟡 观察（低于观察线）、🟢 放量（累耗≥$80 且 D0 达放量线）；渠道级加价/降价建议按可承受 CPI 计算。建议供决策参考，执行与否由投手判断、负责人裁决。</li>
       <li>数据 T+1；每天下午 15:00（新加坡时间）自动更新。</li>
     </ul>
   </div>
@@ -153,11 +179,18 @@ const fmt$ = v => v==null?'–':'$'+Math.round(v).toLocaleString('en-US');
 const fmt2 = v => v==null?'–':(+v).toFixed(2);
 const fmtP = v => v==null?'–':(v*100).toFixed(1)+'%';
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-function pill(v, kind){
+const BAPP=DATA.bench.apps, BCHS=DATA.bench.chs;
+const BCH={}; BCHS.forEach(b=>BCH[b.app+'|'+b.ch]=b);
+const tgtOf=(app,ch,kind)=>{ // kind: d0|d7|d30
+  const a=BAPP[app]; if(!a) return null;
+  if(kind==='d7') return (ch&&BCH[app+'|'+ch])?BCH[app+'|'+ch].tgt7:a.tgt7;
+  return kind==='d0'?a.tgt0:a.tgt30;
+};
+function pill(v, tgt){
   if(v==null) return '<span class="pill p-na">–</span>';
-  const th = {d0:[0.3,0.6], d7:[0.7,1.0], d30:[1.0,1.3]}[kind];
-  const cls = v>=th[1]?'p-good':(v>=th[0]?'p-warn':'p-bad');
-  return '<span class="pill '+cls+'">'+v.toFixed(2)+'</span>';
+  if(!tgt) return '<span class="pill p-n">'+v.toFixed(2)+'</span>';
+  const r=v/tgt, cls=r>=1?'p-good':(r>=0.8?'p-warn':'p-bad');
+  return '<span class="pill '+cls+'" title="目标 '+tgt.toFixed(2)+'">'+v.toFixed(2)+'</span>';
 }
 function delta(cur, prev, costType){
   if(cur==null||prev==null||!prev) return '<span class="badge b-flat">–</span>';
@@ -243,7 +276,10 @@ function makeTable(el, cols, rows, renderRow){
   render();
   return {render, setRows(r){rows=r;render();}};
 }
-const appRow = r=>'<tr><td><b>'+esc(r.k.join(' · '))+'</b></td><td class="num">'+fmt$(r.cost)+'</td><td class="num">'+r.installs.toLocaleString()+'</td><td class="num">'+fmt2(r.cpi)+'</td><td class="num">'+fmtP(r.signup_rate)+'</td><td class="num">'+fmtP(r.payrate)+'</td><td class="num">'+fmtP(r.ret_d1)+'</td><td>'+pill(r.roas_d0,'d0')+'</td><td>'+pill(r.roas_d3,'d0')+'</td><td>'+pill(r.roas_d7,'d7')+'</td><td>'+pill(r.roas_d14,'d7')+'</td><td>'+pill(r.roas_d30,'d30')+'</td></tr>';
+const appRow = r=>{
+  const app=r.k[0], ch=r.k.length>1?r.k[1]:null;
+  return '<tr><td><b>'+esc(r.k.join(' · '))+'</b></td><td class="num">'+fmt$(r.cost)+'</td><td class="num">'+r.installs.toLocaleString()+'</td><td class="num">'+fmt2(r.cpi)+'</td><td class="num">'+fmtP(r.signup_rate)+'</td><td class="num">'+fmtP(r.payrate)+'</td><td class="num">'+fmtP(r.ret_d1)+'</td><td>'+pill(r.roas_d0,tgtOf(app,ch,'d0'))+'</td><td>'+pill(r.roas_d3,null)+'</td><td>'+pill(r.roas_d7,tgtOf(app,ch,'d7'))+'</td><td>'+pill(r.roas_d14,null)+'</td><td>'+pill(r.roas_d30,tgtOf(app,ch,'d30'))+'</td></tr>';
+};
 const appCols=[{t:'维度'},{t:'消耗(28d)',k:'cost'},{t:'安装',k:'installs'},{t:'CPI',k:'cpi'},{t:'注册率',k:'signup_rate'},{t:'D0付费率',k:'payrate'},{t:'D1留存',k:'ret_d1'},{t:'D0 ROAS',k:'roas_d0'},{t:'D3',k:'roas_d3'},{t:'D7',k:'roas_d7'},{t:'D14',k:'roas_d14'},{t:'D30',k:'roas_d30'}];
 makeTable($('tbl-apps'), appCols, DATA.apps, appRow);
 (function(){
@@ -256,7 +292,7 @@ makeTable($('tbl-apps'), appCols, DATA.apps, appRow);
 makeTable($('tbl-cc'),
   [{t:'国家'},{t:'消耗(28d)',k:'cost'},{t:'占比',k:'share'},{t:'CPI',k:'cpi'},{t:'D0付费率',k:'payrate'},{t:'D0 ROAS',k:'roas_d0'},{t:'D7 ROAS',k:'roas_d7'},{t:'D7 前窗',k:'roas_d7_prev'}],
   DATA.countries,
-  r=>'<tr><td><b>'+esc(r.cc)+'</b></td><td class="num">'+fmt$(r.cost)+'</td><td><span class="sharebar" style="width:'+Math.round((r.share||0)*120)+'px"></span>'+fmtP(r.share)+'</td><td class="num">'+fmt2(r.cpi)+'</td><td class="num">'+fmtP(r.payrate)+'</td><td>'+pill(r.roas_d0,'d0')+'</td><td>'+pill(r.roas_d7,'d7')+'</td><td class="num">'+fmt2(r.roas_d7_prev)+' '+delta(r.roas_d7,r.roas_d7_prev,false)+'</td></tr>');
+  r=>'<tr><td><b>'+esc(r.cc)+'</b></td><td class="num">'+fmt$(r.cost)+'</td><td><span class="sharebar" style="width:'+Math.round((r.share||0)*120)+'px"></span>'+fmtP(r.share)+'</td><td class="num">'+fmt2(r.cpi)+'</td><td class="num">'+fmtP(r.payrate)+'</td><td>'+pill(r.roas_d0,null)+'</td><td>'+pill(r.roas_d7,null)+'</td><td class="num">'+fmt2(r.roas_d7_prev)+' '+delta(r.roas_d7,r.roas_d7_prev,false)+'</td></tr>');
 /* ===== 回收曲线 ===== */
 (function(){
   const cs=DATA.curves, cols=['#2E75B6','#3A9E63','#E67E22','#8A5CC7'];
@@ -284,11 +320,11 @@ makeTable($('tbl-cc'),
   $('camp-note').textContent='展示消耗 Top '+rows.length+' 条'+(rest?('；其余 '+rest.n+' 条小额合计 $'+rest.cost.toLocaleString()+'（加权 D0 ROAS '+rest.rev_share_note.toFixed(2)+'）'):'')+'。D7 ROAS 用已成熟批次（T-21 ~ T-7），新开盘显示 – 属正常。';
   const opts=(arr,id)=>{$(id).innerHTML='<option value="">全部</option>'+[...new Set(arr)].sort().map(v=>'<option>'+esc(v)+'</option>').join('');};
   opts(rows.map(r=>r.app),'cf-app'); opts(rows.map(r=>r.ch),'cf-ch'); opts(rows.map(r=>r.owner),'cf-owner');
-  const flagChip=f=>f==='red'?'<span class="chip c-red">关注止损</span>':(f==='green'?'<span class="chip c-green">可放量</span>':'');
+  const flagChip=f=>({stop:'<span class="chip c-red">止损</span>',watch:'<span class="chip c-amber">观察</span>',scale:'<span class="chip c-green">放量</span>'})[f]||'';
   const t=makeTable($('tbl-camp'),
     [{t:'Campaign'},{t:'App'},{t:'渠道'},{t:'投手'},{t:'消耗(14d)',k:'cost'},{t:'昨日',k:'yday'},{t:'安装',k:'installs'},{t:'CPI',k:'cpi'},{t:'D0 ROAS',k:'roas_d0'},{t:'D7 ROAS',k:'roas_d7'},{t:'信号'}],
     rows,
-    r=>'<tr><td title="'+esc(r.name)+'">'+esc(r.name.length>42?r.name.slice(0,40)+'…':r.name)+'</td><td>'+esc(r.app)+'</td><td>'+r.ch+'</td><td>'+esc(r.owner)+'</td><td class="num">'+fmt$(r.cost)+'</td><td class="num">'+fmt$(r.yday)+'</td><td class="num">'+r.installs.toLocaleString()+'</td><td class="num">'+fmt2(r.cpi)+'</td><td>'+pill(r.roas_d0,'d0')+'</td><td>'+pill(r.roas_d7,'d7')+'</td><td>'+flagChip(r.flag)+'</td></tr>');
+    r=>'<tr><td title="'+esc(r.name)+'">'+esc(r.name.length>42?r.name.slice(0,40)+'…':r.name)+'</td><td>'+esc(r.app)+'</td><td>'+r.ch+'</td><td>'+esc(r.owner)+'</td><td class="num">'+fmt$(r.cost)+'</td><td class="num">'+fmt$(r.yday)+'</td><td class="num">'+r.installs.toLocaleString()+'</td><td class="num">'+fmt2(r.cpi)+'</td><td>'+pill(r.roas_d0,tgtOf(r.app,r.ch,'d0'))+'</td><td>'+pill(r.roas_d7,tgtOf(r.app,r.ch,'d7'))+'</td><td>'+flagChip(r.flag)+'</td></tr>');
   const apply=()=>t.setRows(rows.filter(r=>(!$('cf-app').value||r.app===$('cf-app').value)&&(!$('cf-ch').value||r.ch===$('cf-ch').value)&&(!$('cf-owner').value||r.owner===$('cf-owner').value)&&(!$('cf-flag').value||r.flag===$('cf-flag').value)));
   ['cf-app','cf-ch','cf-owner','cf-flag'].forEach(id=>$(id).onchange=apply);
 })();
@@ -296,7 +332,33 @@ makeTable($('tbl-cc'),
 makeTable($('tbl-owner'),
   [{t:'投手'},{t:'消耗(14d)',k:'cost'},{t:'在投条数',k:'n'},{t:'CPI',k:'cpi'},{t:'加权 D0 ROAS',k:'roas_d0'}],
   DATA.owners,
-  r=>'<tr><td><b>'+esc(r.owner)+'</b></td><td class="num">'+fmt$(r.cost)+'</td><td class="num">'+r.n+'</td><td class="num">'+fmt2(r.cpi)+'</td><td>'+pill(r.roas_d0,'d0')+'</td></tr>');
+  r=>'<tr><td><b>'+esc(r.owner)+'</b></td><td class="num">'+fmt$(r.cost)+'</td><td class="num">'+r.n+'</td><td class="num">'+fmt2(r.cpi)+'</td><td>'+pill(r.roas_d0,null)+'</td></tr>');
+/* ===== 今日建议 ===== */
+(function(){
+  const S=DATA.suggestions||[];
+  const n={stop:0,cut:0,watch:0,scale:0}; S.forEach(s=>n[s.level]++);
+  $('sug-note').textContent='模型口径：预测 D75 回收 = 当前回收 × 放大系数（'+DATA.bench.ver+'）。共 '+S.length+' 条：止损 '+n.stop+' · 降价 '+n.cut+' · 观察 '+n.watch+' · 放量 '+n.scale+'。建议供参考，执行由投手判断、负责人裁决。';
+  const tag={stop:['c-red','建议止损'],cut:['c-red','建议降价'],watch:['c-amber','建议观察'],scale:['c-green','可放量']};
+  $('sug-list').innerHTML = S.length? S.map(s=>{
+    const [cls,lbl]=tag[s.level];
+    return '<div class="sug l-'+s.level+'"><div class="head"><span class="chip '+cls+'">'+lbl+'</span><span class="obj">'+esc(s.obj.length>52?s.obj.slice(0,50)+'…':s.obj)+'</span>'+(s.owner?'<span style="color:#66727E;font-size:12px">投手：'+esc(s.owner)+'</span>':'')+'<span style="color:#66727E;font-size:12px">'+s.scope+' · 近期消耗 '+fmt$(s.cost)+'</span></div>'
+      +'<div class="body">'+esc(s.cur)+' ｜ '+esc(s.pred)+'　→　<b>'+esc(s.action)+'</b></div>'
+      +'<div class="why">依据：'+esc(s.why)+'</div></div>';
+  }).join('') : '<div class="panel">今日无触发建议，各组合均在目标区间内。</div>';
+})();
+/* ===== 基准线 ===== */
+(function(){
+  document.getElementById('bench-ver').textContent=DATA.bench.ver;
+  makeTable($('tbl-bench'),
+    [{t:'App'},{t:'渠道'},{t:'D7→D75 系数',k:'mult'},{t:'目标 D7 ROAS',k:'tgt7'},{t:'近期 D7 ROAS',k:'cur7'},{t:'预测 D75 回收',k:'pred75'},{t:'当前 CPI',k:'cpi'},{t:'可承受 CPI',k:'allow'},{t:'加价空间',k:'room'},{t:'消耗(28d)',k:'cost28'}],
+    BCHS,
+    r=>'<tr><td><b>'+esc(r.app)+'</b></td><td>'+r.ch+'</td><td class="num">'+fmt2(r.mult)+'</td><td class="num">'+fmt2(r.tgt7)+'</td><td>'+pill(r.cur7,r.tgt7)+'</td><td>'+pill(r.pred75,1)+'</td><td class="num">'+fmt2(r.cpi)+'</td><td class="num">'+fmt2(r.allow)+'</td><td class="num" style="color:'+(r.room>=0?'var(--good)':'var(--bad)')+';font-weight:600">'+(r.room>=0?'+':'')+Math.round(r.room*100)+'%</td><td class="num">'+fmt$(r.cost28)+'</td></tr>');
+  const rows=Object.keys(BAPP).map(a=>({app:a,...BAPP[a]}));
+  makeTable($('tbl-sop'),
+    [{t:'App'},{t:'目标 D0',k:'tgt0'},{t:'🔴 止损线 (D0<)',k:'stop'},{t:'🟡 观察线 (D0<)',k:'watch'},{t:'🟢 放量线 (D0≥)',k:'scale'},{t:'目标 D7',k:'tgt7'},{t:'目标 D30',k:'tgt30'}],
+    rows,
+    r=>'<tr><td><b>'+esc(r.app)+'</b></td><td class="num">'+fmt2(r.tgt0)+'</td><td class="num" style="color:var(--bad)">'+fmt2(r.stop)+'</td><td class="num" style="color:var(--warn)">'+fmt2(r.watch)+'</td><td class="num" style="color:var(--good)">'+fmt2(r.scale)+'</td><td class="num">'+fmt2(r.tgt7)+'</td><td class="num">'+fmt2(r.tgt30)+'</td></tr>');
+})();
 /* ===== 其他 ===== */
 $('upd').textContent='数据截至 '+DATA.end+' · 更新于 '+DATA.updated;
 $('foot').textContent='自检：121 天付费消耗合计 $'+DATA.check.cost_121d.toLocaleString()+'；口径 v1.0；数据源 Adjust Report Service。';
