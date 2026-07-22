@@ -2,254 +2,288 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>投放数据看板</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>投放工作台</title>
 <style>
-:root{--ink:#26333F;--sub:#66727E;--line:#E3E8EE;--bg:#F4F6F9;--card:#FFFFFF;
---blue:#2E75B6;--deep:#1F4E79;--fb:#3B6FD4;--gg:#3A9E63;--tt:#8A5CC7;
---good:#1F8A5A;--goodbg:#E5F4EC;--bad:#C0392B;--badbg:#FBEAE7;--warn:#B7791F;--warnbg:#FCF3DF;}
+:root{--ink:#1D2939;--sub:#667085;--faint:#98A2B3;--line:#E4E7EC;--bg:#F5F7FA;--card:#FFFFFF;
+--sb:#101B28;--sb2:#182635;--sbtxt:#8FA3B8;--accent:#2E75B6;--accent2:#4E96D8;--deep:#1F4E79;
+--fb:#3B6FD4;--gg:#3A9E63;--tt:#8A5CC7;
+--good:#1F8A5A;--goodbg:#E7F5EE;--bad:#C0392B;--badbg:#FCECE8;--warn:#B7791F;--warnbg:#FCF3DF;
+--shadow:0 1px 3px rgba(16,24,40,.07),0 1px 2px rgba(16,24,40,.04);--r:12px}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6}
-.topbar{position:sticky;top:0;z-index:50;background:var(--card);border-bottom:1px solid var(--line);padding:10px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.topbar h1{font-size:17px;color:var(--deep)}
-.topbar .upd{font-size:12px;color:var(--sub)}
-.nav{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
-.nav a{padding:4px 12px;border-radius:14px;font-size:12px;color:var(--sub);text-decoration:none;border:1px solid var(--line);background:#fff}
-.nav a.on{background:var(--blue);color:#fff;border-color:var(--blue)}
-.wrap{max-width:1180px;margin:0 auto;padding:20px 24px 60px}
-section{margin-bottom:28px}
-h2{font-size:16px;color:var(--deep);margin:26px 0 6px;padding-left:9px;border-left:4px solid var(--blue)}
+html{-webkit-text-size-adjust:100%}
+body{font-family:"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6}
+/* ===== 布局 ===== */
+.shell{display:flex;min-height:100vh}
+aside{width:216px;background:var(--sb);color:var(--sbtxt);flex-shrink:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.logo{padding:20px 20px 14px;color:#fff}
+.logo .t{font-size:16px;font-weight:700;letter-spacing:.5px}
+.logo .s{font-size:11px;color:var(--sbtxt);margin-top:2px}
+.snav{flex:1;overflow-y:auto;padding:6px 10px}
+.sgroup{font-size:10.5px;letter-spacing:1.5px;color:#54687D;padding:14px 10px 5px;text-transform:uppercase}
+.sitem{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13.5px;margin-bottom:2px;border-left:3px solid transparent;user-select:none}
+.sitem svg{width:17px;height:17px;flex-shrink:0}
+.sitem:hover{background:var(--sb2);color:#D5E0EC}
+.sitem.on{background:var(--sb2);color:#fff;border-left-color:var(--accent2)}
+.sitem .bdg{margin-left:auto;background:var(--bad);color:#fff;font-size:10.5px;font-weight:700;border-radius:9px;padding:0 7px}
+.sfoot{padding:12px 20px;font-size:10.5px;color:#54687D;border-top:1px solid #1E2D3D}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.hd{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:12px 26px;display:flex;align-items:center;gap:14px}
+.hd h1{font-size:16.5px;font-weight:700}
+.hd .meta{font-size:12px;color:var(--sub);margin-left:auto;text-align:right}
+.content{padding:22px 26px 60px;max-width:1240px;width:100%}
+/* ===== 组件 ===== */
+h2{font-size:15px;font-weight:700;margin:22px 0 10px}
 .note{font-size:12px;color:var(--sub);margin-bottom:10px}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow);overflow-x:auto}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow)}
 .card .lbl{font-size:12px;color:var(--sub)}
-.card .val{font-size:24px;font-weight:700;margin:2px 0}
-.card .cmp{font-size:12px;color:var(--sub)}
-.badge{display:inline-block;padding:0 6px;border-radius:9px;font-size:11px;font-weight:600}
+.card .val{font-size:23px;font-weight:700;margin:3px 0;font-variant-numeric:tabular-nums}
+.card .cmp{font-size:11.5px;color:var(--sub)}
+.badge{display:inline-block;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:700}
 .b-good{background:var(--goodbg);color:var(--good)}.b-bad{background:var(--badbg);color:var(--bad)}.b-flat{background:#EEF1F5;color:var(--sub)}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:13px}
-th{background:#F0F4F8;color:#3D4B59;text-align:left;padding:7px 10px;white-space:nowrap;cursor:pointer;user-select:none;border-bottom:2px solid var(--line)}
-th .arr{font-size:10px;color:var(--blue)}
-td{padding:6px 10px;border-bottom:1px solid #EEF1F5;white-space:nowrap}
-tr:hover td{background:#F6FAFF}
+th{color:var(--sub);font-weight:600;text-align:left;padding:8px 10px;white-space:nowrap;cursor:pointer;user-select:none;border-bottom:1px solid var(--line);font-size:12px}
+th .arr{font-size:10px;color:var(--accent)}
+td{padding:7px 10px;border-bottom:1px solid #F0F2F5;white-space:nowrap}
+tr:hover td{background:#F7FAFD}
 td.num{text-align:right;font-variant-numeric:tabular-nums}
-.pill{display:inline-block;min-width:52px;text-align:center;padding:0 7px;border-radius:10px;font-weight:600;font-size:12px}
-.p-good{background:var(--goodbg);color:var(--good)}.p-warn{background:var(--warnbg);color:var(--warn)}.p-bad{background:var(--badbg);color:var(--bad)}.p-na{color:#98A2AC}.p-n{background:#EEF1F5;color:#3D4B59}
-.chip{display:inline-block;padding:0 8px;border-radius:10px;font-size:11px;font-weight:600}
-.c-red{background:var(--badbg);color:var(--bad)}.c-green{background:var(--goodbg);color:var(--good)}.c-amber{background:var(--warnbg);color:var(--warn)}.c-blue{background:#E3EEF9;color:var(--deep)}
-.sug{border-left:4px solid var(--line);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:10px}
-.sug .head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px}
-.sug .obj{font-weight:700}
-.sug .body{font-size:12.5px;color:#3D4B59;margin-top:4px}
-.sug .why{font-size:11.5px;color:#98A2AC;margin-top:2px}
-.sug.l-stop{border-left-color:var(--bad)}.sug.l-cut{border-left-color:#E67E22}.sug.l-watch{border-left-color:var(--warn)}.sug.l-scale{border-left-color:var(--good)}
-.vtabs{display:flex;gap:6px}
-.vtab{padding:5px 16px;border-radius:16px;border:1px solid var(--line);background:#fff;font-size:13px;color:var(--sub);cursor:pointer;font-family:inherit}
-.vtab.on{background:var(--deep);color:#fff;border-color:var(--deep);font-weight:600}
-.bstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:6px}
-.bstat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 14px}
-.bstat .v{font-size:22px;font-weight:700}.bstat .l{font-size:12px;color:var(--sub)}
-.board{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start}
-@media(max-width:900px){.board{grid-template-columns:1fr}}
-.col{background:#EDF1F6;border-radius:12px;padding:10px}
-.colhead{font-size:13px;font-weight:700;color:var(--deep);padding:2px 4px 8px}
-.card2{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
-.card2.l-stop{border-left-color:var(--bad)}.card2.l-cut{border-left-color:#E67E22}.card2.l-watch{border-left-color:var(--warn)}.card2.l-scale{border-left-color:var(--good)}
-.card2 .meta{font-size:11.5px;color:#66727E;margin-top:2px}
-.card2 .act{font-size:12.5px;margin-top:6px}
-.card2 .btns{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
-.btn-ok{background:var(--good);color:#fff;border:none;border-radius:7px;padding:5px 14px;font-size:12px;cursor:pointer;font-family:inherit}
-.btn-no{background:#fff;color:var(--bad);border:1px solid var(--bad);border-radius:7px;padding:5px 14px;font-size:12px;cursor:pointer;font-family:inherit}
-.btn-undo{background:#fff;color:var(--sub);border:1px solid var(--line);border-radius:7px;padding:4px 12px;font-size:12px;cursor:pointer;font-family:inherit}
-.btn-sec{background:#fff;color:var(--deep);border:1px solid var(--line);border-radius:7px;padding:4px 12px;font-size:12px;cursor:pointer;font-family:inherit}
-.rej{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px}
-.decided{font-size:11.5px;color:var(--sub);margin-top:6px}
-.sharebar{display:inline-block;height:8px;background:var(--blue);border-radius:4px;vertical-align:middle;margin-right:6px}
-.filters{display:flex;gap:10px;margin:8px 0 10px;flex-wrap:wrap;font-size:12px}
-select{padding:3px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px;background:#fff;color:var(--ink)}
+.pill{display:inline-block;min-width:50px;text-align:center;padding:1px 7px;border-radius:20px;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums}
+.p-good{background:var(--goodbg);color:var(--good)}.p-warn{background:var(--warnbg);color:var(--warn)}.p-bad{background:var(--badbg);color:var(--bad)}.p-na{color:var(--faint)}.p-n{background:#EEF1F5;color:#475467}
+.chip{display:inline-block;padding:1px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.c-red{background:var(--badbg);color:var(--bad)}.c-green{background:var(--goodbg);color:var(--good)}.c-amber{background:var(--warnbg);color:var(--warn)}
+.sharebar{display:inline-block;height:7px;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:4px;vertical-align:middle;margin-right:6px}
+.filters{display:flex;gap:10px;margin:10px 0;flex-wrap:wrap;font-size:12.5px;align-items:center}
+select,input[type=number]{padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fff;color:var(--ink);font-family:inherit}
 .legend{display:flex;gap:14px;font-size:12px;color:var(--sub);margin:4px 0 8px;flex-wrap:wrap}
-.dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:baseline}
+.dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px}
 svg text{font-family:inherit}
-.mono{font-size:11px;color:#98A2AC}
-footer{font-size:11px;color:#98A2AC;border-top:1px solid var(--line);padding-top:10px;margin-top:30px}
-#toTop{position:fixed;right:22px;bottom:22px;width:36px;height:36px;border-radius:50%;background:var(--blue);color:#fff;border:none;font-size:16px;cursor:pointer;display:none}
-@media print{.topbar,#toTop{display:none}}
+.mono{font-size:11px;color:var(--faint)}
+footer{font-size:11px;color:var(--faint);padding-top:14px}
+/* ===== 工作台 ===== */
+.bstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:14px}
+.bstat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 16px;box-shadow:var(--shadow)}
+.bstat .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}.bstat .l{font-size:11.5px;color:var(--sub)}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start}
+.col{background:#EDF1F6;border-radius:var(--r);padding:10px}
+.colhead{font-size:12.5px;font-weight:700;padding:2px 6px 8px;color:var(--sub)}
+.colhead b{color:var(--ink)}
+.card2{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow)}
+.card2.l-stop{border-left-color:var(--bad)}.card2.l-cut{border-left-color:#E67E22}.card2.l-watch{border-left-color:var(--warn)}.card2.l-scale{border-left-color:var(--good)}
+.card2 .meta{font-size:11.5px;color:var(--sub);margin-top:3px}
+.card2 .act{font-size:13px;margin-top:7px}
+.card2 .btns{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.btn-ok{background:var(--good);color:#fff;border:none;border-radius:9px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;min-height:38px}
+.btn-no{background:#fff;color:var(--bad);border:1.5px solid var(--bad);border-radius:9px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;min-height:38px}
+.btn-undo{background:#fff;color:var(--sub);border:1px solid var(--line);border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:inherit}
+.btn-sec{background:#fff;color:var(--deep);border:1px solid var(--line);border-radius:8px;padding:6px 14px;font-size:12.5px;cursor:pointer;font-family:inherit;box-shadow:var(--shadow)}
+.rej{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12.5px}
+.decided{font-size:12px;color:var(--sub);margin-top:8px}
+.seg{display:none;background:#E7EBF1;border-radius:10px;padding:3px;margin-bottom:12px}
+.seg button{flex:1;border:none;background:transparent;padding:8px 4px;border-radius:8px;font-size:13px;color:var(--sub);font-family:inherit;font-weight:600}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:var(--shadow)}
+/* ===== 底部导航 (移动端) ===== */
+.bnav{display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);z-index:60;padding:4px 0 calc(4px + env(safe-area-inset-bottom))}
+.bnav .row{display:flex}
+.bni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 0;font-size:10.5px;color:var(--faint);cursor:pointer;position:relative}
+.bni svg{width:21px;height:21px}
+.bni.on{color:var(--accent)}
+.bni .bdg{position:absolute;top:0;right:calc(50% - 18px);background:var(--bad);color:#fff;font-size:9px;font-weight:700;border-radius:8px;padding:0 5px}
+/* ===== 响应式 ===== */
+@media(max-width:1020px){
+  aside{display:none}
+  .bnav{display:block}
+  .hd{padding:12px 16px}
+  .content{padding:16px 14px calc(90px + env(safe-area-inset-bottom))}
+  .board{grid-template-columns:1fr}
+  .col{display:none}.col.mob-on{display:block;background:transparent;padding:0}
+  .seg{display:flex}
+  .colhead{display:none}
+  .cards{grid-template-columns:repeat(2,1fr)}
+  .bstats{grid-template-columns:repeat(2,1fr)}
+  .hd .meta .upd2{display:none}
+}
+@media print{aside,.bnav,.hd{display:none}}
 </style>
 </head>
 <body>
-<div class="topbar">
-  <h1>投放建议单工作台</h1><span class="upd" id="upd"></span>
-  <div class="vtabs">
-    <button class="vtab on" data-v="board">建议单</button>
-    <button class="vtab" data-v="data">数据明细</button>
-    <button class="vtab" data-v="model">预估模型</button>
-  </div>
-  <nav class="nav" id="nav" style="display:none">
-    <a href="#sec-kpi" class="on">总览</a><a href="#sec-sug">建议</a><a href="#sec-trend">趋势</a><a href="#sec-app">App×渠道</a>
-    <a href="#sec-cc">国家</a><a href="#sec-curve">回收曲线</a><a href="#sec-camp">Campaign</a>
-    <a href="#sec-owner">投手</a><a href="#sec-bench">基准线</a><a href="#sec-def">口径</a>
+<div class="shell">
+<aside>
+  <div class="logo"><div class="t">投放工作台</div><div class="s">UA Ops Console</div></div>
+  <nav class="snav" id="snav">
+    <div class="sgroup">日常</div>
+    <div class="sitem on" data-r="work"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 12l2 2 4-5"/></svg>建议单<span class="bdg" id="sb-badge"></span></div>
+    <div class="sitem" data-r="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 13 7 13 10 5 14 19 17 13 21 13"/></svg>大盘总览</div>
+    <div class="sitem" data-r="camp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>Campaign</div>
+    <div class="sgroup">分析</div>
+    <div class="sitem" data-r="app"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>App × 渠道</div>
+    <div class="sitem" data-r="cc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/></svg>国家</div>
+    <div class="sitem" data-r="owner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.5c2.8.3 4.5 2.4 4.5 5.5"/></svg>投手</div>
+    <div class="sitem" data-r="curve"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 19 9 12 13 15 21 5"/><polyline points="15 5 21 5 21 11"/></svg>回收曲线</div>
+    <div class="sgroup">决策依据</div>
+    <div class="sitem" data-r="bench"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>基准线</div>
+    <div class="sitem" data-r="model"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l2.5 2.5M16.5 16.5L19 19M19 5l-2.5 2.5M7.5 16.5L5 19"/></svg>预估模型</div>
+    <div class="sitem" data-r="def"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-2zM19 17H6a2 2 0 0 0-2 2"/></svg>口径说明</div>
   </nav>
-</div>
+  <div class="sfoot">数据 T+1 · 每日 15:00 更新<br><span id="sf-ver"></span></div>
+</aside>
 
-<div class="wrap" id="view-board">
-  <div class="bstats" id="b-stats"></div>
-  <div class="filters" style="margin:4px 0 14px">
-    <label>投手：<select id="bf-owner"><option value="">全部</option></select></label>
-    <label>类型：<select id="bf-level"><option value="">全部</option><option value="stop">止损</option><option value="cut">降价</option><option value="watch">观察</option><option value="scale">放量</option></select></label>
-    <button class="btn-sec" id="btn-export">导出今日处理记录 CSV</button>
-    <span class="note" style="margin:0">处理结果保存在本设备浏览器；正式多人同步待接入 AgenticUG 后端</span>
-  </div>
-  <div class="board">
-    <div class="col"><div class="colhead">待处理 <span id="n-todo"></span></div><div id="col-todo"></div></div>
-    <div class="col"><div class="colhead" style="color:var(--good)">已采纳 <span id="n-ok"></span></div><div id="col-ok"></div></div>
-    <div class="col"><div class="colhead" style="color:var(--bad)">已拒绝 <span id="n-no"></span></div><div id="col-no"></div></div>
-  </div>
-  <div class="note" style="margin-top:14px">建议由预估模型按基准线（<span id="bver2"></span>）生成，SLA：止损类 2 小时、降价/观察当日、放量 24 小时。拒绝必选理由——这些理由每周汇总反馈给 AgenticUG 迭代模型。</div>
-</div>
+<div class="main">
+  <div class="hd"><h1 id="hd-title">建议单</h1><div class="meta"><span id="upd"></span></div></div>
+  <div class="content">
 
-<div class="wrap" id="view-model" style="display:none">
-  <div class="bstats" id="m-stats"></div>
-
-  <h2>模型是怎么算的</h2>
-  <div class="panel" style="font-size:13px">
-    <ul style="padding-left:18px;display:grid;gap:6px">
-      <li><b>第一步·测量：</b>把过去 13 个月每一天买进来的用户当成一个"批次"，跟踪每个批次在第 0/7/30/45/75 天累计赚回多少钱。</li>
-      <li><b>第二步·提取规律：</b>同一个 App 的回收曲线形状非常稳定——D7 之后赚多少，和 D7 的比例基本固定。把这个比例按消耗加权算出来，就是"放大系数"（如 Bondy 整体 D7→D75 = 1.45 倍）。</li>
-      <li><b>第三步·预测：</b>任何一条 campaign，只要跑出了 D0 或 D7 回收，乘上对应系数就能预测它 75 天后的回收，从而提前 2 个多月判断"这条能不能回本"。</li>
-      <li><b>第四步·闭环：</b>用系数倒推出目标线（回本所需的最低 D7/D0 回收）和可承受 CPI，建议单、看板标色、三档止损线全部由此生成；每月第 1 周用最新数据重新校准系数。</li>
-    </ul>
-  </div>
-
-  <h2>试算器</h2>
-  <div class="panel">
-    <div class="filters" style="margin:0 0 10px">
-      <label>App：<select id="m-app"></select></label>
-      <label>渠道：<select id="m-ch"><option value="">整体</option><option>FB</option><option>GG</option><option>TT</option></select></label>
-      <label>已知指标：<select id="m-kind"><option value="d0">D0 ROAS</option><option value="d7">D7 ROAS</option></select></label>
-      <label>数值：<input id="m-val" type="number" step="0.01" placeholder="如 0.45" style="width:80px;padding:4px 8px;border:1px solid var(--line);border-radius:6px"></label>
-      <label>当前 CPI（选填）：<input id="m-cpi" type="number" step="0.1" placeholder="如 5.2" style="width:80px;padding:4px 8px;border:1px solid var(--line);border-radius:6px"></label>
+  <!-- ===== 建议单工作台 ===== -->
+  <section data-r="work">
+    <div class="bstats" id="b-stats"></div>
+    <div class="filters">
+      <label>投手 <select id="bf-owner"><option value="">全部</option></select></label>
+      <label>类型 <select id="bf-level"><option value="">全部</option><option value="stop">止损</option><option value="cut">降价</option><option value="watch">观察</option><option value="scale">放量</option></select></label>
+      <button class="btn-sec" id="btn-export">导出处理记录 CSV</button>
     </div>
-    <div id="m-out" class="note" style="margin:0">输入数值后自动计算。</div>
+    <div class="seg" id="bseg">
+      <button class="on" data-seg="todo">待处理 <span id="sn-todo"></span></button>
+      <button data-seg="ok">已采纳 <span id="sn-ok"></span></button>
+      <button data-seg="no">已拒绝 <span id="sn-no"></span></button>
+    </div>
+    <div class="board">
+      <div class="col mob-on" data-c="todo"><div class="colhead">待处理 <b id="n-todo"></b></div><div id="col-todo"></div></div>
+      <div class="col" data-c="ok"><div class="colhead" style="color:var(--good)">已采纳 <b id="n-ok"></b></div><div id="col-ok"></div></div>
+      <div class="col" data-c="no"><div class="colhead" style="color:var(--bad)">已拒绝 <b id="n-no"></b></div><div id="col-no"></div></div>
+    </div>
+    <div class="note" style="margin-top:14px">建议由预估模型按基准线（<span id="bver2"></span>）生成。SLA：止损 2 小时、降价/观察当日、放量 24 小时。拒绝必选理由，每周汇总反馈给 AgenticUG。处理结果保存在本设备浏览器，多人同步待接入后端。</div>
+  </section>
+
+  <!-- ===== 大盘总览 ===== -->
+  <section data-r="overview" hidden>
+    <div class="note" id="kpi-note"></div>
+    <div class="cards" id="kpi-cards"></div>
+    <h2>日消耗（分渠道）× 当日 D0 ROAS · 近 56 天</h2>
+    <div class="panel">
+      <div class="legend"><span><span class="dot" style="background:var(--fb)"></span>Facebook</span><span><span class="dot" style="background:var(--gg)"></span>Google</span><span><span class="dot" style="background:var(--tt)"></span>TikTok</span><span><span class="dot" style="background:#E67E22;width:14px;height:3px"></span>D0 ROAS（右轴）</span></div>
+      <div id="chart-daily"></div>
+    </div>
+    <h2>周度 D7 ROAS 分渠道（仅统计窗口已走完的完整周）</h2>
+    <div class="panel">
+      <div class="legend"><span><span class="dot" style="background:var(--fb)"></span>FB</span><span><span class="dot" style="background:var(--gg)"></span>GG</span><span><span class="dot" style="background:var(--tt)"></span>TT</span><span style="color:var(--faint)">虚线 = 1.0 回本线</span></div>
+      <div id="chart-weekly"></div>
+    </div>
+  </section>
+
+  <!-- ===== App × 渠道 ===== -->
+  <section data-r="app" hidden>
+    <div class="note">各列 ROAS 使用各自"已成熟"的 28 天批次窗口；颜色按各 App(×渠道) 目标线判定，悬停可见目标值。点表头排序。</div>
+    <h2>App 汇总</h2>
+    <div class="panel"><table id="tbl-apps"></table></div>
+    <h2>App × 渠道明细</h2>
+    <div class="panel">
+      <div class="filters" style="margin-top:0"><label>App <select id="f-app"></select></label></div>
+      <table id="tbl-appch"></table>
+    </div>
+  </section>
+
+  <!-- ===== 国家 ===== -->
+  <section data-r="cc" hidden>
+    <div class="note">近 28 天付费投放；国家行跨 App 聚合，故不套用单一目标线（灰色）；Bondy/Bliss 分国家目标见"基准线"。</div>
+    <div class="panel"><table id="tbl-cc"></table></div>
+  </section>
+
+  <!-- ===== Campaign ===== -->
+  <section data-r="camp" hidden>
+    <div class="note" id="camp-note"></div>
+    <div class="filters">
+      <label>App <select id="cf-app"></select></label>
+      <label>渠道 <select id="cf-ch"></select></label>
+      <label>投手 <select id="cf-owner"></select></label>
+      <label>信号 <select id="cf-flag"><option value="">全部</option><option value="stop">🔴 止损</option><option value="watch">🟡 观察</option><option value="scale">🟢 放量</option></select></label>
+    </div>
+    <div class="panel"><table id="tbl-camp"></table></div>
+  </section>
+
+  <!-- ===== 投手 ===== -->
+  <section data-r="owner" hidden>
+    <div class="note">归属规则（月度复盘 skill 口径）：命名 = 账户前缀_产品_…_操作者，操作者优先——含 yz 归 yz、含 lio 归 lio、二者同现记"归属冲突"；其余人名须唯一命中，多名同现记"未归属"；子账户变体（如 Susanf03 / Susanp / Susan0601-2）并入主名。</div>
+    <div class="panel"><table id="tbl-owner"></table></div>
+  </section>
+
+  <!-- ===== 回收曲线 ===== -->
+  <section data-r="curve" hidden>
+    <div class="note">每个点取该 App 对应成熟窗口的 28 天批次平均；虚线为 1.0 回本线。</div>
+    <div class="panel"><div class="legend" id="curve-legend"></div><div id="chart-curve"></div></div>
+  </section>
+
+  <!-- ===== 基准线 ===== -->
+  <section data-r="bench" hidden>
+    <div class="note">版本：<span id="bench-ver"></span>。可承受 CPI = 每安装 D7 收入 × D7→D75 放大系数；回本目标 = D75 回收 ≥ 100%。系数每月第 1 周校准。</div>
+    <h2>App × 渠道 基准与预估</h2>
+    <div class="panel"><table id="tbl-bench"></table></div>
+    <h2>Campaign 三档线（判定指标：累耗达门槛后的 D0 ROAS）</h2>
+    <div class="panel"><table id="tbl-sop"></table></div>
+  </section>
+
+  <!-- ===== 预估模型 ===== -->
+  <section data-r="model" hidden>
+    <div class="bstats" id="m-stats"></div>
+    <h2>模型是怎么算的</h2>
+    <div class="panel" style="font-size:13px">
+      <ul style="padding-left:18px;display:grid;gap:6px">
+        <li><b>第一步·测量：</b>把过去 13 个月每一天买进来的用户当成一个"批次"，跟踪每个批次在第 0/7/30/45/75 天累计赚回多少钱。</li>
+        <li><b>第二步·提取规律：</b>同一个 App 的回收曲线形状非常稳定——D7 之后赚多少，和 D7 的比例基本固定。把这个比例按消耗加权算出来，就是"放大系数"（如 Bondy 整体 D7→D75 = 1.45 倍）。</li>
+        <li><b>第三步·预测：</b>任何一条 campaign，只要跑出了 D0 或 D7 回收，乘上对应系数就能预测它 75 天后的回收，从而提前 2 个多月判断"这条能不能回本"。</li>
+        <li><b>第四步·闭环：</b>用系数倒推出目标线和可承受 CPI，建议单、标色、三档止损线全部由此生成；每月第 1 周重新校准。</li>
+      </ul>
+    </div>
+    <h2>试算器</h2>
+    <div class="panel">
+      <div class="filters" style="margin-top:0">
+        <label>App <select id="m-app"></select></label>
+        <label>渠道 <select id="m-ch"><option value="">整体</option><option>FB</option><option>GG</option><option>TT</option></select></label>
+        <label>已知指标 <select id="m-kind"><option value="d0">D0 ROAS</option><option value="d7">D7 ROAS</option></select></label>
+        <label>数值 <input id="m-val" type="number" step="0.01" placeholder="如 0.45" style="width:84px"></label>
+        <label>当前 CPI（选填）<input id="m-cpi" type="number" step="0.1" placeholder="如 5.2" style="width:84px"></label>
+      </div>
+      <div id="m-out" class="note" style="margin:0">输入数值后自动计算。</div>
+    </div>
+    <h2>系数总表</h2>
+    <div class="panel"><table id="tbl-mult"></table></div>
+    <h2>预测曲线（实线=实际回收，虚线=模型外推）</h2>
+    <div class="panel"><div class="legend" id="mcurve-legend"></div><div id="chart-mcurve"></div></div>
+    <h2>回测成绩（模型可信度）</h2>
+    <div class="note">用系数预测 2026 年 3–5 月各月 D30 回收，与实际对比。平均绝对误差 <b id="m-mae"></b>，达标线 15%。</div>
+    <div class="panel"><table id="tbl-bt"></table></div>
+  </section>
+
+  <!-- ===== 口径 ===== -->
+  <section data-r="def" hidden>
+    <div class="panel" style="font-size:13px">
+      <ul style="padding-left:18px;display:grid;gap:7px">
+        <li><b>消耗</b> = 渠道侧消耗 network_cost（FB/GG/TT 统一；TikTok 归因口径消耗恒为 0，故全渠道统一采用渠道侧）。</li>
+        <li><b>注册</b> = signup_complete 事件；<b>CPI</b> = 消耗÷安装；<b>注册成本 CPA</b> = 消耗÷注册。</li>
+        <li><b>D0 付费率</b> = D0 付费用户 ÷ 注册。</li>
+        <li><b>DX ROAS</b> = 批次 X 日累计收入 ÷ 对应消耗（未扣退款）。仅统计"窗口已走完"的成熟批次：D3 列用截至 T-3 的 28 天批次，D7 列用截至 T-7，D30 列用截至 T-30——不同列窗口不同，只做同列横向对比。</li>
+        <li><b>自然量</b>（Organic / Google Organic Search）不参与任何 ROI 计算；Kita 未投放，不纳入。</li>
+        <li><b>颜色标尺</b>：按各 App（×渠道）目标线相对着色——达标绿、80%~100% 黄、不足 80% 红；D3/D14 未设目标线显示灰色。</li>
+        <li><b>建议单与信号</b>：由预估模型按三档线生成——止损（累耗≥$100 且 D0 低于止损线）、观察（低于观察线）、放量（累耗≥$80 且达放量线）；渠道级加价/降价按可承受 CPI 计算。建议供参考，执行由投手判断、负责人裁决。</li>
+        <li><b>投手归属</b>：命名 = 账户前缀_产品_…_操作者，操作者优先（yz/lio 规则见投手页说明）。</li>
+        <li>数据 T+1；每天下午 15:00（新加坡时间）自动更新。</li>
+      </ul>
+    </div>
+    <footer id="foot"></footer>
+  </section>
+
   </div>
-
-  <h2>系数总表（<span id="m-ver"></span>）</h2>
-  <div class="panel"><table id="tbl-mult"></table></div>
-
-  <h2>预测曲线（实线=实际回收，虚线=模型外推）</h2>
-  <div class="panel"><div class="legend" id="mcurve-legend"></div><div id="chart-mcurve"></div></div>
-
-  <h2>回测成绩（模型可信度）</h2>
-  <div class="note">方法：用系数预测 2026 年 3–5 月各月的 D30 回收，与后来实际发生的对比。平均绝对误差 <b id="m-mae"></b>，达标线 15%。</div>
-  <div class="panel"><table id="tbl-bt"></table></div>
+</div>
 </div>
 
-<div class="wrap" id="view-data" style="display:none">
+<!-- 移动端底部导航 -->
+<nav class="bnav"><div class="row">
+  <div class="bni on" data-r="work"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 12l2 2 4-5"/></svg>建议单<span class="bdg" id="bn-badge"></span></div>
+  <div class="bni" data-r="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 13 7 13 10 5 14 19 17 13 21 13"/></svg>大盘</div>
+  <div class="bni" data-r="camp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>Campaign</div>
+  <div class="bni" data-r="bench"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/></svg>基准</div>
+  <div class="bni" data-r="model"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>模型</div>
+</div></nav>
 
-<section id="sec-kpi">
-  <h2>核心指标（近 7 天 vs 前 7 天）</h2>
-  <div class="note" id="kpi-note"></div>
-  <div class="cards" id="kpi-cards"></div>
-</section>
-
-<section id="sec-sug">
-  <h2>今日建议（预估模型生成）</h2>
-  <div class="note" id="sug-note"></div>
-  <div id="sug-list"></div>
-</section>
-
-<section id="sec-trend">
-  <h2>大盘趋势</h2>
-  <div class="panel">
-    <div style="font-weight:600;margin-bottom:2px">日消耗（分渠道堆叠）× 当日 D0 ROAS · 近 56 天</div>
-    <div class="legend"><span><span class="dot" style="background:var(--fb)"></span>Facebook</span><span><span class="dot" style="background:var(--gg)"></span>Google</span><span><span class="dot" style="background:var(--tt)"></span>TikTok</span><span><span class="dot" style="background:#E67E22;width:14px;height:3px;border-radius:2px"></span>D0 ROAS（右轴）</span></div>
-    <div id="chart-daily"></div>
-  </div>
-  <div style="height:14px"></div>
-  <div class="panel">
-    <div style="font-weight:600;margin-bottom:2px">周度 D7 ROAS 分渠道（仅统计 D7 窗口已走完的完整周）</div>
-    <div class="legend"><span><span class="dot" style="background:var(--fb)"></span>FB</span><span><span class="dot" style="background:var(--gg)"></span>GG</span><span><span class="dot" style="background:var(--tt)"></span>TT</span><span style="color:#98A2AC">虚线 = 1.0 回本线</span></div>
-    <div id="chart-weekly"></div>
-  </div>
-</section>
-
-<section id="sec-app">
-  <h2>App × 渠道</h2>
-  <div class="note">各列 ROAS 使用各自"已成熟"的 28 天批次窗口（详见口径章）。点击表头排序。</div>
-  <div class="panel">
-    <div style="font-weight:600;margin-bottom:6px">App 汇总</div>
-    <table id="tbl-apps"></table>
-  </div>
-  <div style="height:14px"></div>
-  <div class="panel">
-    <div style="font-weight:600;margin-bottom:6px">App × 渠道明细</div>
-    <div class="filters"><label>App：<select id="f-app"></select></label></div>
-    <table id="tbl-appch"></table>
-  </div>
-</section>
-
-<section id="sec-cc">
-  <h2>国家（近 28 天）</h2>
-  <div class="panel"><table id="tbl-cc"></table></div>
-</section>
-
-<section id="sec-curve">
-  <h2>批次回收曲线（D0 → D30）</h2>
-  <div class="note">每个点取该 App 对应成熟窗口的 28 天批次平均；虚线为 1.0 回本线。</div>
-  <div class="panel"><div class="legend" id="curve-legend"></div><div id="chart-curve"></div></div>
-</section>
-
-<section id="sec-camp">
-  <h2>Campaign 明细（近 14 天有消耗，按消耗排序）</h2>
-  <div class="note" id="camp-note"></div>
-  <div class="filters">
-    <label>App：<select id="cf-app"></select></label>
-    <label>渠道：<select id="cf-ch"></select></label>
-    <label>投手：<select id="cf-owner"></select></label>
-    <label>信号：<select id="cf-flag"><option value="">全部</option><option value="stop">🔴 止损</option><option value="watch">🟡 观察</option><option value="scale">🟢 放量</option></select></label>
-  </div>
-  <div class="panel"><table id="tbl-camp"></table></div>
-</section>
-
-<section id="sec-owner">
-  <h2>投手汇总（近 14 天）</h2>
-  <div class="note">归属规则（月度复盘 skill 口径）：命名 = 账户前缀_产品_…_操作者，操作者优先——含 yz 归 yz、含 lio 归 lio、二者同现记"归属冲突"；其余人名须唯一命中，多名同现记"未归属"；子账户变体（如 Susanf03 / Susanp / Susan0601-2）并入主名。</div>
-  <div class="panel"><table id="tbl-owner"></table></div>
-</section>
-
-<section id="sec-bench">
-  <h2>基准线（<span id="bench-ver"></span>）</h2>
-  <div class="note">可承受 CPI = 每安装 D7 收入 × D7→D75 放大系数；回本目标 = D75 回收 ≥ 100%。系数每月第 1 周校准。</div>
-  <div class="panel">
-    <div style="font-weight:600;margin-bottom:6px">App × 渠道 基准与预估</div>
-    <table id="tbl-bench"></table>
-  </div>
-  <div style="height:14px"></div>
-  <div class="panel">
-    <div style="font-weight:600;margin-bottom:6px">Campaign 三档线（判定指标：累耗达门槛后的 D0 ROAS）</div>
-    <table id="tbl-sop"></table>
-  </div>
-</section>
-
-<section id="sec-def">
-  <h2>口径说明（v1.1 · 已拍板）</h2>
-  <div class="panel" style="font-size:13px">
-    <ul style="padding-left:18px;display:grid;gap:6px">
-      <li><b>消耗</b> = 渠道侧消耗 network_cost（FB/GG/TT 统一；TikTok 归因口径消耗恒为 0，故全渠道统一采用渠道侧）。</li>
-      <li><b>注册</b> = signup_complete 事件；<b>CPI</b> = 消耗÷安装；<b>注册成本 CPA</b> = 消耗÷注册。</li>
-      <li><b>D0 付费率</b> = D0 付费用户 ÷ 注册。</li>
-      <li><b>DX ROAS</b> = 批次 X 日累计收入 ÷ 对应消耗（未扣退款）。仅统计"窗口已走完"的成熟批次：D3 列用截至 T-3 的 28 天批次，D7 列用截至 T-7，D30 列用截至 T-30，以此类推——因此不同列的统计窗口不同，横向对比同列、不要跨列对比时间。</li>
-      <li><b>自然量</b>（Organic / Google Organic Search）不参与任何 ROI 计算；Kita 未投放，不纳入看板。</li>
-      <li><b>颜色标尺</b>：按各 App（×渠道）的目标线相对着色——达到目标为绿、达到目标的 80%~100% 为黄、不足 80% 为红；D3/D14 未设目标线，显示灰色。目标线见"基准线"章。</li>
-      <li><b>Campaign 信号与今日建议</b>：由预估模型按各 App 三档线生成——🔴 止损（累耗≥$100 且 D0 低于止损线）、🟡 观察（低于观察线）、🟢 放量（累耗≥$80 且 D0 达放量线）；渠道级加价/降价建议按可承受 CPI 计算。建议供决策参考，执行与否由投手判断、负责人裁决。</li>
-      <li>数据 T+1；每天下午 15:00（新加坡时间）自动更新。</li>
-    </ul>
-  </div>
-</section>
-
-<footer id="foot"></footer>
-</div>
-<button id="toTop" title="返回顶部">↑</button>
 <script id="data" type="application/json">__DATA__</script>
 <script>
 const DATA = JSON.parse(document.getElementById('data').textContent);
@@ -260,7 +294,7 @@ const fmtP = v => v==null?'–':(v*100).toFixed(1)+'%';
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const BAPP=DATA.bench.apps, BCHS=DATA.bench.chs;
 const BCH={}; BCHS.forEach(b=>BCH[b.app+'|'+b.ch]=b);
-const tgtOf=(app,ch,kind)=>{ // kind: d0|d7|d30
+const tgtOf=(app,ch,kind)=>{
   const a=BAPP[app]; if(!a) return null;
   if(kind==='d7') return (ch&&BCH[app+'|'+ch])?BCH[app+'|'+ch].tgt7:a.tgt7;
   return kind==='d0'?a.tgt0:a.tgt30;
@@ -278,10 +312,19 @@ function delta(cur, prev, costType){
   const worse = costType ? pct>0 : pct<0;
   return '<span class="badge '+(worse?'b-bad':'b-good')+'">'+(pct>0?'+':'')+pct.toFixed(0)+'%</span>';
 }
+/* ===== 路由 ===== */
+const TITLES={work:'建议单',overview:'大盘总览',camp:'Campaign 明细（近 14 天）',app:'App × 渠道',cc:'国家（近 28 天）',owner:'投手汇总（近 14 天）',curve:'批次回收曲线（D0 → D30）',bench:'基准线',model:'预估模型',def:'口径说明（v1.1 · 已拍板）'};
+function go(r){
+  document.querySelectorAll('section[data-r]').forEach(s=>s.hidden=s.dataset.r!==r);
+  document.querySelectorAll('.sitem,.bni').forEach(el=>el.classList.toggle('on',el.dataset.r===r));
+  $('hd-title').textContent=TITLES[r]||r;
+  scrollTo(0,0);
+}
+document.querySelectorAll('.sitem,.bni').forEach(el=>el.onclick=()=>go(el.dataset.r));
 /* ===== KPI ===== */
 (function(){
   const k=DATA.kpi, c=k.cur7, p=k.prev7;
-  $('kpi-note').textContent = '窗口：'+k.win7[0]+' ~ '+k.win7[1]+'（对比 '+k.pwin7[0]+' ~ '+k.pwin7[1]+'）；D7 ROAS 用成熟窗 '+k.roas_d7.win[0]+' ~ '+k.roas_d7.win[1]+' 的批次';
+  $('kpi-note').textContent='近 7 天（'+k.win7[0]+' ~ '+k.win7[1]+'）对比前 7 天；D7 ROAS 用成熟窗 '+k.roas_d7.win[0]+' ~ '+k.roas_d7.win[1]+' 的批次';
   const items=[
     ['消耗', fmt$(c.cost), delta(c.cost,p.cost,false)+' <span class="mono">前值 '+fmt$(p.cost)+'</span>'],
     ['安装', c.installs.toLocaleString(), delta(c.installs,p.installs,false)+' <span class="mono">前值 '+p.installs.toLocaleString()+'</span>'],
@@ -307,7 +350,7 @@ function delta(cur, prev, costType){
     const x=padL+i*iw; let acc=0;
     [['fb','var(--fb)'],['gg','var(--gg)'],['tt','var(--tt)']].forEach(([k,col])=>{
       if(r[k]>0){const h=(H-padT-padB)*r[k]/maxC;
-        bars+='<rect x="'+(x+0.5)+'" y="'+(y(acc+r[k])).toFixed(1)+'" width="'+(iw-1.4).toFixed(1)+'" height="'+h.toFixed(1)+'" fill="'+col+'"><title>'+r.d+' '+k.toUpperCase()+' $'+r[k].toLocaleString()+'</title></rect>';
+        bars+='<rect x="'+(x+0.5)+'" y="'+(y(acc+r[k])).toFixed(1)+'" width="'+(iw-1.4).toFixed(1)+'" height="'+h.toFixed(1)+'" rx="0.5" fill="'+col+'"><title>'+r.d+' '+k.toUpperCase()+' $'+r[k].toLocaleString()+'</title></rect>';
         acc+=r[k];}
     });
     if(r.roas!=null) lp.push([x+iw/2, yr(r.roas), r.d, r.roas]);
@@ -316,11 +359,11 @@ function delta(cur, prev, costType){
       +lp.map(p=>'<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.4" fill="#E67E22"><title>'+p[2]+' D0 ROAS '+p[3].toFixed(2)+'</title></circle>').join('');
   let axis='';
   for(let i=0;i<=4;i++){const v=maxC*i/4, yy=y(v);
-    axis+='<line x1="'+padL+'" y1="'+yy+'" x2="'+(W-padR)+'" y2="'+yy+'" stroke="#EEF1F5"/><text x="'+(padL-6)+'" y="'+(yy+4)+'" font-size="10" fill="#98A2AC" text-anchor="end">'+(v/1000).toFixed(0)+'k</text>';
+    axis+='<line x1="'+padL+'" y1="'+yy+'" x2="'+(W-padR)+'" y2="'+yy+'" stroke="#EEF1F5"/><text x="'+(padL-6)+'" y="'+(yy+4)+'" font-size="10" fill="#98A2B3" text-anchor="end">'+(v/1000).toFixed(0)+'k</text>';
     const rv=maxR*i/4;
     axis+='<text x="'+(W-padR+6)+'" y="'+(yr(rv)+4)+'" font-size="10" fill="#E67E22">'+rv.toFixed(1)+'</text>';}
   let xt='';
-  d.forEach((r,i)=>{if(i%7===0) xt+='<text x="'+(padL+i*iw+iw/2)+'" y="'+(H-8)+'" font-size="10" fill="#98A2AC" text-anchor="middle">'+r.d+'</text>';});
+  d.forEach((r,i)=>{if(i%7===0) xt+='<text x="'+(padL+i*iw+iw/2)+'" y="'+(H-8)+'" font-size="10" fill="#98A2B3" text-anchor="middle">'+r.d+'</text>';});
   $('chart-daily').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:1080px">'+axis+bars+line+xt+'</svg>';
 })();
 /* ===== 周度 D7 ROAS ===== */
@@ -331,17 +374,17 @@ function delta(cur, prev, costType){
   const x=i=>padL+(W-padL-padR)*(d.length===1?0.5:i/(d.length-1));
   const y=v=>padT+(H-padT-padB)*(1-(v-minV)/(maxV-minV));
   let g='';
-  for(let i=0;i<=3;i++){const v=maxV*i/3;g+='<line x1="'+padL+'" y1="'+y(v)+'" x2="'+(W-padR)+'" y2="'+y(v)+'" stroke="#EEF1F5"/><text x="'+(padL-5)+'" y="'+(y(v)+4)+'" font-size="10" fill="#98A2AC" text-anchor="end">'+v.toFixed(1)+'</text>';}
+  for(let i=0;i<=3;i++){const v=maxV*i/3;g+='<line x1="'+padL+'" y1="'+y(v)+'" x2="'+(W-padR)+'" y2="'+y(v)+'" stroke="#EEF1F5"/><text x="'+(padL-5)+'" y="'+(y(v)+4)+'" font-size="10" fill="#98A2B3" text-anchor="end">'+v.toFixed(1)+'</text>';}
   g+='<line x1="'+padL+'" y1="'+y(1)+'" x2="'+(W-padR)+'" y2="'+y(1)+'" stroke="#C0392B" stroke-dasharray="4 3" opacity="0.5"/>';
   [['fb','var(--fb)'],['gg','var(--gg)'],['tt','var(--tt)']].forEach(([k,col])=>{
     const pts=d.map((r,i)=>r[k]!=null?[x(i),y(r[k]),r.w,r[k]]:null).filter(Boolean);
     g+='<polyline fill="none" stroke="'+col+'" stroke-width="2" points="'+pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')+'"/>';
     g+=pts.map(p=>'<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.6" fill="'+col+'"><title>'+p[2]+' 周 '+k.toUpperCase()+' D7 ROAS '+p[3].toFixed(2)+'</title></circle>').join('');
   });
-  let xt=d.map((r,i)=>'<text x="'+x(i)+'" y="'+(H-6)+'" font-size="10" fill="#98A2AC" text-anchor="middle">'+r.w+'</text>').join('');
+  let xt=d.map((r,i)=>'<text x="'+x(i)+'" y="'+(H-6)+'" font-size="10" fill="#98A2B3" text-anchor="middle">'+r.w+'</text>').join('');
   $('chart-weekly').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:620px">'+g+xt+'</svg>';
 })();
-/* ===== 表格公用: 排序 ===== */
+/* ===== 表格公用 ===== */
 function makeTable(el, cols, rows, renderRow){
   let sortK=null, asc=false;
   function render(){
@@ -367,7 +410,6 @@ makeTable($('tbl-apps'), appCols, DATA.apps, appRow);
   const t=makeTable($('tbl-appch'), appCols, DATA.app_channel, appRow);
   sel.onchange=()=>t.setRows(DATA.app_channel.filter(r=>!sel.value||r.k[0]===sel.value));
 })();
-/* ===== 国家 ===== */
 makeTable($('tbl-cc'),
   [{t:'国家'},{t:'消耗(28d)',k:'cost'},{t:'占比',k:'share'},{t:'CPI',k:'cpi'},{t:'D0付费率',k:'payrate'},{t:'D0 ROAS',k:'roas_d0'},{t:'D7 ROAS',k:'roas_d7'},{t:'D7 前窗',k:'roas_d7_prev'}],
   DATA.countries,
@@ -375,28 +417,28 @@ makeTable($('tbl-cc'),
 /* ===== 回收曲线 ===== */
 (function(){
   const cs=DATA.curves, cols=['#2E75B6','#3A9E63','#E67E22','#8A5CC7'];
-  $('curve-legend').innerHTML=cs.map((c,i)=>'<span><span class="dot" style="background:'+cols[i%4]+'"></span>'+esc(c.app)+'</span>').join('')+'<span style="color:#98A2AC">虚线 = 1.0 回本线</span>';
+  $('curve-legend').innerHTML=cs.map((c,i)=>'<span><span class="dot" style="background:'+cols[i%4]+'"></span>'+esc(c.app)+'</span>').join('')+'<span style="color:#98A2B3">虚线 = 1.0 回本线</span>';
   const W=620,H=230,padL=36,padR=14,padT=10,padB=24;
   const all=cs.flatMap(c=>c.pts.map(p=>p.y)).filter(v=>v!=null);
   const maxV=Math.max(1.2,...all)*1.08;
   const x=v=>padL+(W-padL-padR)*v/30;
   const y=v=>padT+(H-padT-padB)*(1-v/maxV);
   let g='';
-  for(let i=0;i<=4;i++){const v=maxV*i/4;g+='<line x1="'+padL+'" y1="'+y(v)+'" x2="'+(W-padR)+'" y2="'+y(v)+'" stroke="#EEF1F5"/><text x="'+(padL-5)+'" y="'+(y(v)+4)+'" font-size="10" fill="#98A2AC" text-anchor="end">'+v.toFixed(1)+'</text>';}
+  for(let i=0;i<=4;i++){const v=maxV*i/4;g+='<line x1="'+padL+'" y1="'+y(v)+'" x2="'+(W-padR)+'" y2="'+y(v)+'" stroke="#EEF1F5"/><text x="'+(padL-5)+'" y="'+(y(v)+4)+'" font-size="10" fill="#98A2B3" text-anchor="end">'+v.toFixed(1)+'</text>';}
   g+='<line x1="'+padL+'" y1="'+y(1)+'" x2="'+(W-padR)+'" y2="'+y(1)+'" stroke="#C0392B" stroke-dasharray="4 3" opacity="0.5"/>';
   cs.forEach((c,i)=>{
     const pts=c.pts.filter(p=>p.y!=null);
     g+='<polyline fill="none" stroke="'+cols[i%4]+'" stroke-width="2" points="'+pts.map(p=>x(p.x).toFixed(1)+','+y(p.y).toFixed(1)).join(' ')+'"/>';
     g+=pts.map(p=>'<circle cx="'+x(p.x).toFixed(1)+'" cy="'+y(p.y).toFixed(1)+'" r="2.6" fill="'+cols[i%4]+'"><title>'+esc(c.app)+' D'+p.x+' ROAS '+p.y.toFixed(2)+'</title></circle>').join('');
   });
-  g+=[0,1,3,7,14,30].map(v=>'<text x="'+x(v)+'" y="'+(H-6)+'" font-size="10" fill="#98A2AC" text-anchor="middle">D'+v+'</text>').join('');
+  g+=[0,1,3,7,14,30].map(v=>'<text x="'+x(v)+'" y="'+(H-6)+'" font-size="10" fill="#98A2B3" text-anchor="middle">D'+v+'</text>').join('');
   $('chart-curve').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:620px">'+g+'</svg>';
 })();
 /* ===== Campaign ===== */
 (function(){
   const rows=DATA.campaigns;
   const rest=DATA.campaigns_rest;
-  $('camp-note').textContent='展示消耗 Top '+rows.length+' 条'+(rest?('；其余 '+rest.n+' 条小额合计 $'+rest.cost.toLocaleString()+'（加权 D0 ROAS '+rest.rev_share_note.toFixed(2)+'）'):'')+'。D7 ROAS 用已成熟批次（T-21 ~ T-7），新开盘显示 – 属正常。';
+  $('camp-note').textContent='近 14 天有消耗，按消耗排序，展示 Top '+rows.length+' 条'+(rest?('；其余 '+rest.n+' 条小额合计 $'+rest.cost.toLocaleString()+'（加权 D0 ROAS '+rest.rev_share_note.toFixed(2)+'）'):'')+'。D7 ROAS 用已成熟批次（T-21 ~ T-7），新开盘显示 – 属正常。';
   const opts=(arr,id)=>{$(id).innerHTML='<option value="">全部</option>'+[...new Set(arr)].sort().map(v=>'<option>'+esc(v)+'</option>').join('');};
   opts(rows.map(r=>r.app),'cf-app'); opts(rows.map(r=>r.ch),'cf-ch'); opts(rows.map(r=>r.owner),'cf-owner');
   const flagChip=f=>({stop:'<span class="chip c-red">止损</span>',watch:'<span class="chip c-amber">观察</span>',scale:'<span class="chip c-green">放量</span>'})[f]||'';
@@ -407,31 +449,17 @@ makeTable($('tbl-cc'),
   const apply=()=>t.setRows(rows.filter(r=>(!$('cf-app').value||r.app===$('cf-app').value)&&(!$('cf-ch').value||r.ch===$('cf-ch').value)&&(!$('cf-owner').value||r.owner===$('cf-owner').value)&&(!$('cf-flag').value||r.flag===$('cf-flag').value)));
   ['cf-app','cf-ch','cf-owner','cf-flag'].forEach(id=>$(id).onchange=apply);
 })();
-/* ===== 投手 ===== */
 makeTable($('tbl-owner'),
   [{t:'投手'},{t:'消耗(14d)',k:'cost'},{t:'在投条数',k:'n'},{t:'CPI',k:'cpi'},{t:'加权 D0 ROAS',k:'roas_d0'}],
   DATA.owners,
   r=>'<tr><td><b>'+esc(r.owner)+'</b></td><td class="num">'+fmt$(r.cost)+'</td><td class="num">'+r.n+'</td><td class="num">'+fmt2(r.cpi)+'</td><td>'+pill(r.roas_d0,null)+'</td></tr>');
-/* ===== 今日建议 ===== */
-(function(){
-  const S=DATA.suggestions||[];
-  const n={stop:0,cut:0,watch:0,scale:0}; S.forEach(s=>n[s.level]++);
-  $('sug-note').textContent='模型口径：预测 D75 回收 = 当前回收 × 放大系数（'+DATA.bench.ver+'）。共 '+S.length+' 条：止损 '+n.stop+' · 降价 '+n.cut+' · 观察 '+n.watch+' · 放量 '+n.scale+'。建议供参考，执行由投手判断、负责人裁决。';
-  const tag={stop:['c-red','建议止损'],cut:['c-red','建议降价'],watch:['c-amber','建议观察'],scale:['c-green','可放量']};
-  $('sug-list').innerHTML = S.length? S.map(s=>{
-    const [cls,lbl]=tag[s.level];
-    return '<div class="sug l-'+s.level+'"><div class="head"><span class="chip '+cls+'">'+lbl+'</span><span class="obj">'+esc(s.obj.length>52?s.obj.slice(0,50)+'…':s.obj)+'</span>'+(s.owner?'<span style="color:#66727E;font-size:12px">投手：'+esc(s.owner)+'</span>':'')+'<span style="color:#66727E;font-size:12px">'+s.scope+' · 近期消耗 '+fmt$(s.cost)+'</span></div>'
-      +'<div class="body">'+esc(s.cur)+' ｜ '+esc(s.pred)+'　→　<b>'+esc(s.action)+'</b></div>'
-      +'<div class="why">依据：'+esc(s.why)+'</div></div>';
-  }).join('') : '<div class="panel">今日无触发建议，各组合均在目标区间内。</div>';
-})();
 /* ===== 基准线 ===== */
 (function(){
-  document.getElementById('bench-ver').textContent=DATA.bench.ver;
+  $('bench-ver').textContent=DATA.bench.ver;
   makeTable($('tbl-bench'),
     [{t:'App'},{t:'渠道'},{t:'D7→D75 系数',k:'mult'},{t:'目标 D7 ROAS',k:'tgt7'},{t:'近期 D7 ROAS',k:'cur7'},{t:'预测 D75 回收',k:'pred75'},{t:'当前 CPI',k:'cpi'},{t:'可承受 CPI',k:'allow'},{t:'加价空间',k:'room'},{t:'消耗(28d)',k:'cost28'}],
     BCHS,
-    r=>'<tr><td><b>'+esc(r.app)+'</b></td><td>'+r.ch+'</td><td class="num">'+fmt2(r.mult)+'</td><td class="num">'+fmt2(r.tgt7)+'</td><td>'+pill(r.cur7,r.tgt7)+'</td><td>'+pill(r.pred75,1)+'</td><td class="num">'+fmt2(r.cpi)+'</td><td class="num">'+fmt2(r.allow)+'</td><td class="num" style="color:'+(r.room>=0?'var(--good)':'var(--bad)')+';font-weight:600">'+(r.room>=0?'+':'')+Math.round(r.room*100)+'%</td><td class="num">'+fmt$(r.cost28)+'</td></tr>');
+    r=>'<tr><td><b>'+esc(r.app)+'</b></td><td>'+r.ch+'</td><td class="num">'+fmt2(r.mult)+'</td><td class="num">'+fmt2(r.tgt7)+'</td><td>'+pill(r.cur7,r.tgt7)+'</td><td>'+pill(r.pred75,1)+'</td><td class="num">'+fmt2(r.cpi)+'</td><td class="num">'+fmt2(r.allow)+'</td><td class="num" style="color:'+(r.room>=0?'var(--good)':'var(--bad)')+';font-weight:700">'+(r.room>=0?'+':'')+Math.round(r.room*100)+'%</td><td class="num">'+fmt$(r.cost28)+'</td></tr>');
   const rows=Object.keys(BAPP).map(a=>({app:a,...BAPP[a]}));
   makeTable($('tbl-sop'),
     [{t:'App'},{t:'目标 D0',k:'tgt0'},{t:'🔴 止损线 (D0<)',k:'stop'},{t:'🟡 观察线 (D0<)',k:'watch'},{t:'🟢 放量线 (D0≥)',k:'scale'},{t:'目标 D7',k:'tgt7'},{t:'目标 D30',k:'tgt30'}],
@@ -443,9 +471,9 @@ makeTable($('tbl-owner'),
   const S=DATA.suggestions||[];
   const KEY='ua_dec_'+DATA.end;
   let dec={}; try{dec=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
-  let rejId=null;
+  let rejId=null, mobCol='todo';
   const save=()=>localStorage.setItem(KEY,JSON.stringify(dec));
-  document.getElementById('bver2').textContent=DATA.bench.ver;
+  $('bver2').textContent=DATA.bench.ver;
   const owners=[...new Set(S.map(s=>s.owner||'—'))].sort();
   $('bf-owner').innerHTML='<option value="">全部</option>'+owners.map(o=>'<option>'+esc(o)+'</option>').join('');
   const tag={stop:['c-red','止损'],cut:['c-red','降价'],watch:['c-amber','观察'],scale:['c-green','放量']};
@@ -453,7 +481,7 @@ makeTable($('tbl-owner'),
   function card(s){
     const d=dec[s.id];
     const [cls,lbl]=tag[s.level];
-    let h='<div class="card2 l-'+s.level+'"><div class="head" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px">'
+    let h='<div class="card2 l-'+s.level+'"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px">'
       +'<span class="chip '+cls+'">'+lbl+'</span><b>'+esc(s.obj.length>46?s.obj.slice(0,44)+'…':s.obj)+'</b></div>'
       +'<div class="meta">'+(s.owner?'投手 '+esc(s.owner)+' · ':'')+s.scope+' · 消耗 '+fmt$(s.cost)+' · SLA '+s.sla+'</div>'
       +'<div class="meta">'+esc(s.cur)+' ｜ '+esc(s.pred)+'</div>'
@@ -462,7 +490,7 @@ makeTable($('tbl-owner'),
     if(!d){
       if(rejId===s.id){
         h+='<div class="rej">拒绝理由：<select id="rej-sel">'+REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select>'
-          +'<button class="btn-no" data-c="'+s.id+'">确认拒绝</button><button class="btn-undo" data-x="1">取消</button></div>';
+          +'<button class="btn-no" data-cf="'+s.id+'">确认拒绝</button><button class="btn-undo" data-x="1">取消</button></div>';
       } else {
         h+='<div class="btns"><button class="btn-ok" data-ok="'+s.id+'">✓ 采纳</button><button class="btn-no" data-rej="'+s.id+'">✕ 拒绝</button></div>';
       }
@@ -476,20 +504,28 @@ makeTable($('tbl-owner'),
     const vis=S.filter(s=>(!fo||(s.owner||'—')===fo)&&(!fl||s.level===fl));
     const todo=vis.filter(s=>!dec[s.id]), ok=vis.filter(s=>dec[s.id]&&dec[s.id].s==='ok'), no=vis.filter(s=>dec[s.id]&&dec[s.id].s==='no');
     $('col-todo').innerHTML=todo.map(card).join('')||'<div class="note" style="padding:8px">没有待处理的建议 ✓</div>';
-    $('col-ok').innerHTML=ok.map(card).join('');
-    $('col-no').innerHTML=no.map(card).join('');
+    $('col-ok').innerHTML=ok.map(card).join('')||'';
+    $('col-no').innerHTML=no.map(card).join('')||'';
     $('n-todo').textContent=todo.length; $('n-ok').textContent=ok.length; $('n-no').textContent=no.length;
+    $('sn-todo').textContent=todo.length; $('sn-ok').textContent=ok.length; $('sn-no').textContent=no.length;
+    const allTodo=S.filter(s=>!dec[s.id]).length;
+    ['sb-badge','bn-badge'].forEach(id=>{const el=$(id); if(el){el.textContent=allTodo; el.style.display=allTodo?'':'none';}});
     const done=Object.keys(dec).length, tot=S.length;
     const okAll=S.filter(s=>dec[s.id]&&dec[s.id].s==='ok').length;
     $('b-stats').innerHTML=[['今日建议',tot],['已处理',done+' / '+tot],['采纳率',done?Math.round(okAll/done*100)+'%':'–'],['数据截至',DATA.end.slice(5)]]
       .map(x=>'<div class="bstat"><div class="v">'+x[1]+'</div><div class="l">'+x[0]+'</div></div>').join('');
     document.querySelectorAll('[data-ok]').forEach(b=>b.onclick=()=>{dec[b.dataset.ok]={s:'ok',t:new Date().toLocaleString('zh-CN')};save();rejId=null;render();});
     document.querySelectorAll('[data-rej]').forEach(b=>b.onclick=()=>{rejId=b.dataset.rej;render();});
-    document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{const r=document.getElementById('rej-sel').value;dec[b.dataset.c]={s:'no',r:r,t:new Date().toLocaleString('zh-CN')};save();rejId=null;render();});
+    document.querySelectorAll('[data-cf]').forEach(b=>b.onclick=()=>{const r=document.getElementById('rej-sel').value;dec[b.dataset.cf]={s:'no',r:r,t:new Date().toLocaleString('zh-CN')};save();rejId=null;render();});
     document.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{rejId=null;render();});
     document.querySelectorAll('[data-un]').forEach(b=>b.onclick=()=>{delete dec[b.dataset.un];save();render();});
   }
   $('bf-owner').onchange=render; $('bf-level').onchange=render;
+  document.querySelectorAll('#bseg button').forEach(b=>b.onclick=()=>{
+    mobCol=b.dataset.seg;
+    document.querySelectorAll('#bseg button').forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('.board .col').forEach(c=>c.classList.toggle('mob-on',c.dataset.c===mobCol));
+  });
   $('btn-export').onclick=()=>{
     const rows=[['日期','类型','对象','投手','建议动作','当前状态','模型预测','决定','拒绝理由','处理时间']];
     S.forEach(s=>{const d=dec[s.id]||{};rows.push([DATA.end,tag[s.level][1],s.obj,s.owner||'',s.action,s.cur,s.pred,d.s==='ok'?'采纳':(d.s==='no'?'拒绝':'未处理'),d.r||'',d.t||''])});
@@ -497,43 +533,31 @@ makeTable($('tbl-owner'),
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='建议单处理记录_'+DATA.end+'.csv';a.click();
   };
   render();
-  /* 视图切换 */
-  document.querySelectorAll('.vtab').forEach(b=>b.onclick=()=>{
-    document.querySelectorAll('.vtab').forEach(x=>x.classList.toggle('on',x===b));
-    ['board','data','model'].forEach(v=>document.getElementById('view-'+v).style.display=v===b.dataset.v?'':'none');
-    document.getElementById('nav').style.display=b.dataset.v==='data'?'flex':'none';
-    scrollTo(0,0);
-  });
 })();
 /* ===== 预估模型页 ===== */
 (function(){
   const MU=DATA.bench.mult, BT=DATA.bench.backtest;
-  document.getElementById('m-ver').textContent=DATA.bench.ver;
-  document.getElementById('m-mae').textContent=BT.mae+'%';
+  $('m-mae').textContent=BT.mae+'%';
   $('m-stats').innerHTML=[['校准版本',DATA.bench.ver.replace(' 校准','')],['回测平均误差',BT.mae+'%'],['训练样本','13 个月'],['样本消耗','$3.58M'],['下次校准','每月第 1 周']]
-    .map(x=>'<div class="bstat"><div class="v" style="font-size:18px">'+x[1]+'</div><div class="l">'+x[0]+'</div></div>').join('');
-  /* 系数总表 */
+    .map(x=>'<div class="bstat"><div class="v" style="font-size:17px">'+x[1]+'</div><div class="l">'+x[0]+'</div></div>').join('');
   const apps=Object.keys(MU.apps);
   makeTable($('tbl-mult'),
     [{t:'App'},{t:'D0→D7 (r)',k:'r70'},{t:'D7→D30',k:'m30'},{t:'D7→D45',k:'m45'},{t:'D7→D75 整体',k:'m75'},{t:'D7→D75 FB'},{t:'D7→D75 GG'},{t:'D7→D75 TT'}],
     apps.map(a=>({app:a,...MU.apps[a]})),
     r=>'<tr><td><b>'+esc(r.app)+'</b></td><td class="num">'+fmt2(r.r70)+'</td><td class="num">'+fmt2(r.m30)+'</td><td class="num">'+fmt2(r.m45)+'</td><td class="num"><b>'+fmt2(r.m75)+'</b></td>'
       +['FB','GG','TT'].map(c=>'<td class="num">'+(MU.chs[r.app+'|'+c]?fmt2(MU.chs[r.app+'|'+c]):'–')+'</td>').join('')+'</tr>');
-  /* 回测表 */
   makeTable($('tbl-bt'),
     [{t:'App'},{t:'月份'},{t:'模型预测 D30',k:2},{t:'实际 D30',k:3},{t:'误差'}],
     BT.rows.map(r=>({0:r[0],1:r[1],2:r[2],3:r[3]})),
     r=>{const e=(r[2]-r[3])/r[3]*100, cls=Math.abs(e)<=8?'p-good':(Math.abs(e)<=15?'p-warn':'p-bad');
-      return '<tr><td><b>'+esc(r[0])+'</b></td><td>'+r[1]+'</td><td class="num">'+fmt2(r[2])+'</td><td class="num">'+fmt2(r[3])+'</td><td><span class="pill '+cls+'">'+(e>0?'+':'')+e.toFixed(0)+'%</span></td></tr>';});
-  /* 试算器 */
-  const selApp=document.getElementById('m-app');
+      return '<tr><td><b>'+esc(r[0])+'</b></td><td>'+r[1]+'</td><td class="num">'+fmt2(r[2])+'</td><td class="num">'+fm2b(r[3])+'</td><td><span class="pill '+cls+'">'+(e>0?'+':'')+e.toFixed(0)+'%</span></td></tr>';});
+  function fm2b(v){return fmt2(v);}
+  const selApp=$('m-app');
   selApp.innerHTML=apps.map(a=>'<option>'+a+'</option>').join('');
   const calc=()=>{
-    const app=selApp.value, ch=document.getElementById('m-ch').value;
-    const kind=document.getElementById('m-kind').value;
-    const val=parseFloat(document.getElementById('m-val').value);
-    const cpi=parseFloat(document.getElementById('m-cpi').value);
-    const out=document.getElementById('m-out');
+    const app=selApp.value, ch=$('m-ch').value, kind=$('m-kind').value;
+    const val=parseFloat($('m-val').value), cpi=parseFloat($('m-cpi').value);
+    const out=$('m-out');
     if(!app||isNaN(val)||val<=0){out.innerHTML='输入数值后自动计算。';return;}
     const m=MU.apps[app], m75=(ch&&MU.chs[app+'|'+ch])||m.m75;
     const d7=kind==='d0'?val*m.r70:val;
@@ -545,14 +569,13 @@ makeTable($('tbl-owner'),
     if(!isNaN(cpi)&&cpi>0){
       const allow=cpi*d75;
       h+='<br>按此质量，可承受 CPI = <b>$'+allow.toFixed(2)+'</b>（当前 $'+cpi.toFixed(2)+'，'
-        +(allow>=cpi?'<span style="color:var(--good);font-weight:600">还有 +'+Math.round((allow/cpi-1)*100)+'% 加价空间</span>':'<span style="color:var(--bad);font-weight:600">超价 '+Math.round((1-allow/cpi)*100)+'%，需降价</span>')+'）';
+        +(allow>=cpi?'<span style="color:var(--good);font-weight:700">还有 +'+Math.round((allow/cpi-1)*100)+'% 加价空间</span>':'<span style="color:var(--bad);font-weight:700">超价 '+Math.round((1-allow/cpi)*100)+'%，需降价</span>')+'）';
     }
     out.innerHTML=h+'</div>';
   };
-  ['m-app','m-ch','m-kind','m-val','m-cpi'].forEach(id=>{const el=document.getElementById(id);el.oninput=calc;el.onchange=calc;});
-  /* 预测曲线: 实际到 D30 + 外推到 D75 */
+  ['m-app','m-ch','m-kind','m-val','m-cpi'].forEach(id=>{const el=$(id);el.oninput=calc;el.onchange=calc;});
   const cs=DATA.curves, cols=['#2E75B6','#3A9E63','#E67E22','#8A5CC7'];
-  document.getElementById('mcurve-legend').innerHTML=cs.map((c,i)=>'<span><span class="dot" style="background:'+cols[i%4]+'"></span>'+esc(c.app)+'</span>').join('')+'<span style="color:#98A2AC">红虚线 = 1.0 回本线</span>';
+  $('mcurve-legend').innerHTML=cs.map((c,i)=>'<span><span class="dot" style="background:'+cols[i%4]+'"></span>'+esc(c.app)+'</span>').join('')+'<span style="color:#98A2B3">红虚线 = 1.0 回本线</span>';
   const W=680,H=250,padL=36,padR=16,padT=10,padB=24;
   const ext=c=>{const a7=(c.pts.find(p=>p.x===7)||{}).y; const m=MU.apps[c.app];
     return a7&&m?[{x:45,y:a7*m.m45},{x:75,y:a7*m.m75}]:[];};
@@ -560,7 +583,7 @@ makeTable($('tbl-owner'),
   const maxV=Math.max(1.2,...all)*1.08;
   const x=v=>padL+(W-padL-padR)*v/75, y=v=>padT+(H-padT-padB)*(1-v/maxV);
   let g='';
-  for(let i=0;i<=4;i++){const v=maxV*i/4;g+='<line x1="'+padL+'" y1="'+y(v)+'" x2="'+(W-padR)+'" y2="'+y(v)+'" stroke="#EEF1F5"/><text x="'+(padL-5)+'" y="'+(y(v)+4)+'" font-size="10" fill="#98A2AC" text-anchor="end">'+v.toFixed(1)+'</text>';}
+  for(let i=0;i<=4;i++){const v=maxV*i/4;g+='<line x1="'+padL+'" y1="'+y(v)+'" x2="'+(W-padR)+'" y2="'+y(v)+'" stroke="#EEF1F5"/><text x="'+(padL-5)+'" y="'+(y(v)+4)+'" font-size="10" fill="#98A2B3" text-anchor="end">'+v.toFixed(1)+'</text>';}
   g+='<line x1="'+padL+'" y1="'+y(1)+'" x2="'+(W-padR)+'" y2="'+y(1)+'" stroke="#C0392B" stroke-dasharray="4 3" opacity="0.5"/>';
   cs.forEach((c,i)=>{
     const pts=c.pts.filter(p=>p.y!=null);
@@ -572,20 +595,13 @@ makeTable($('tbl-owner'),
     }
     g+=pts.map(p=>'<circle cx="'+x(p.x).toFixed(1)+'" cy="'+y(p.y).toFixed(1)+'" r="2.4" fill="'+cols[i%4]+'"><title>'+esc(c.app)+' 实际 D'+p.x+' '+p.y.toFixed(2)+'</title></circle>').join('');
   });
-  g+=[0,7,14,30,45,75].map(v=>'<text x="'+x(v)+'" y="'+(H-6)+'" font-size="10" fill="#98A2AC" text-anchor="middle">D'+v+'</text>').join('');
-  document.getElementById('chart-mcurve').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:680px">'+g+'</svg>';
+  g+=[0,7,14,30,45,75].map(v=>'<text x="'+x(v)+'" y="'+(H-6)+'" font-size="10" fill="#98A2B3" text-anchor="middle">D'+v+'</text>').join('');
+  $('chart-mcurve').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:680px">'+g+'</svg>';
 })();
 /* ===== 其他 ===== */
-$('upd').textContent='数据截至 '+DATA.end+' · 更新于 '+DATA.updated;
-$('foot').textContent='自检：121 天付费消耗合计 $'+DATA.check.cost_121d.toLocaleString()+'；口径 v1.0；数据源 Adjust Report Service。';
-const secs=[...document.querySelectorAll('section')], links=[...document.querySelectorAll('.nav a')];
-addEventListener('scroll',()=>{
-  const yv=scrollY+90; let cur=secs[0].id;
-  secs.forEach(s=>{if(s.offsetTop<=yv)cur=s.id;});
-  links.forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+cur));
-  document.getElementById('toTop').style.display=scrollY>500?'block':'none';
-});
-document.getElementById('toTop').onclick=()=>scrollTo({top:0,behavior:'smooth'});
+$('upd').innerHTML='数据截至 <b>'+DATA.end+'</b><span class="upd2"> · 更新于 '+DATA.updated+'</span>';
+$('sf-ver').textContent='基准 '+DATA.bench.ver+' · 口径 v1.1';
+$('foot').textContent='自检：121 天付费消耗合计 $'+DATA.check.cost_121d.toLocaleString()+'；数据源 Adjust Report Service。';
 </script>
 <!--BUILD_SCRIPT_B64:__BUILD_B64__-->
 </body>
