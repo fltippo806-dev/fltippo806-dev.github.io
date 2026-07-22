@@ -474,8 +474,11 @@ makeTable($('tbl-owner'),
   let rejId=null, mobCol='todo';
   const save=()=>localStorage.setItem(KEY,JSON.stringify(dec));
   $('bver2').textContent=DATA.bench.ver;
-  const owners=[...new Set(S.map(s=>s.owner||'—'))].sort();
-  $('bf-owner').innerHTML='<option value="">全部</option>'+owners.map(o=>'<option>'+esc(o)+'</option>').join('');
+  const cnt={}; S.forEach(s=>{const o=s.owner||'—';cnt[o]=(cnt[o]||0)+1;});
+  const roster=DATA.owners.map(o=>o.owner);                       // 完整投手名册(按消耗排序)
+  const extra=Object.keys(cnt).filter(o=>o!=='—'&&!roster.includes(o));
+  const owners=[...roster,...extra,'—'];
+  $('bf-owner').innerHTML='<option value="">全部</option>'+owners.map(o=>'<option value="'+esc(o)+'">'+(o==='—'?'渠道级（无投手）':esc(o))+'（'+(cnt[o]||0)+'）</option>').join('');
   const tag={stop:['c-red','止损'],cut:['c-red','降价'],watch:['c-amber','观察'],scale:['c-green','放量']};
   const REASONS=['数据不认可','时机不对','我有额外信息','其他'];
   function card(s){
