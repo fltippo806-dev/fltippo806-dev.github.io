@@ -28,6 +28,16 @@ MULT30_APP = {"Blaze":1.37,"Bliss":1.37,"Bondy":1.31,"Chille":1.32,"Flare":1.44,
 R70_APP = {"Blaze":2.15,"Bliss":1.86,"Bondy":1.57,"Chille":1.42,"Flare":2.04,"Rush":1.58,"Tippo":1.92}  # D7/D0 倍率
 SOP_STOP, SOP_WATCH, SOP_SCALE = 0.55, 0.8, 1.2  # 三档线系数
 BENCH_VER = "2026-07 校准"
+MULT45_APP = {"Blaze":1.47,"Bliss":1.48,"Bondy":1.39,"Chille":1.42,"Flare":1.56,"Rush":1.43,"Tippo":1.41}
+# 回测: 用系数预测 2026-03~05 各月 D30 ROAS vs 实际 (模型产物, 月度校准时更新)
+BACKTEST = {"mae": 6.2, "rows": [
+ ["Blaze","2026-03",1.26,1.12],["Blaze","2026-04",1.22,1.27],["Blaze","2026-05",1.22,1.05],
+ ["Bliss","2026-03",1.40,1.53],["Bliss","2026-04",1.26,1.33],["Bliss","2026-05",1.38,1.42],
+ ["Bondy","2026-03",1.46,1.49],["Bondy","2026-04",1.48,1.48],["Bondy","2026-05",1.36,1.37],
+ ["Chille","2026-03",0.88,0.91],["Chille","2026-04",1.14,1.13],["Chille","2026-05",1.03,1.21],
+ ["Flare","2026-03",1.38,1.41],["Flare","2026-04",1.05,0.99],["Flare","2026-05",1.32,1.37],
+ ["Rush","2026-03",1.08,1.00],["Rush","2026-04",1.25,1.22],["Rush","2026-05",0.90,0.82],
+ ["Tippo","2026-03",0.82,0.74],["Tippo","2026-04",1.27,1.19],["Tippo","2026-05",1.31,1.52]]}
 
 METRICS = ("network_cost,network_impressions,network_clicks,installs,"
            "signup_complete_events,paying_users_d0,retained_users_d1,retained_users_d3,"
@@ -357,7 +367,11 @@ def build(main, camp):
             "app_channel": app_channel, "apps": apps_tot, "countries": countries,
             "curves": curves, "campaigns": campaigns, "campaigns_rest": rest_row,
             "owners": owner_rows,
-            "bench": {"ver": BENCH_VER, "apps": bench_apps, "chs": bench_chs},
+            "bench": {"ver": BENCH_VER, "apps": bench_apps, "chs": bench_chs,
+                      "mult": {"apps": {a: {"r70": R70_APP[a], "m30": MULT30_APP[a],
+                                            "m45": MULT45_APP[a], "m75": MULT75_APP[a]} for a in MULT75_APP},
+                               "chs": {k[0] + "|" + k[1]: v for k, v in MULT75_CH.items()}},
+                      "backtest": BACKTEST},
             "suggestions": suggestions,
             "check": {"cost_121d": round(sum(f(r, "network_cost") for r in paid))}}
 

@@ -83,6 +83,7 @@ footer{font-size:11px;color:#98A2AC;border-top:1px solid var(--line);padding-top
   <div class="vtabs">
     <button class="vtab on" data-v="board">建议单</button>
     <button class="vtab" data-v="data">数据明细</button>
+    <button class="vtab" data-v="model">预估模型</button>
   </div>
   <nav class="nav" id="nav" style="display:none">
     <a href="#sec-kpi" class="on">总览</a><a href="#sec-sug">建议</a><a href="#sec-trend">趋势</a><a href="#sec-app">App×渠道</a>
@@ -105,6 +106,42 @@ footer{font-size:11px;color:#98A2AC;border-top:1px solid var(--line);padding-top
     <div class="col"><div class="colhead" style="color:var(--bad)">已拒绝 <span id="n-no"></span></div><div id="col-no"></div></div>
   </div>
   <div class="note" style="margin-top:14px">建议由预估模型按基准线（<span id="bver2"></span>）生成，SLA：止损类 2 小时、降价/观察当日、放量 24 小时。拒绝必选理由——这些理由每周汇总反馈给 AgenticUG 迭代模型。</div>
+</div>
+
+<div class="wrap" id="view-model" style="display:none">
+  <div class="bstats" id="m-stats"></div>
+
+  <h2>模型是怎么算的</h2>
+  <div class="panel" style="font-size:13px">
+    <ul style="padding-left:18px;display:grid;gap:6px">
+      <li><b>第一步·测量：</b>把过去 13 个月每一天买进来的用户当成一个"批次"，跟踪每个批次在第 0/7/30/45/75 天累计赚回多少钱。</li>
+      <li><b>第二步·提取规律：</b>同一个 App 的回收曲线形状非常稳定——D7 之后赚多少，和 D7 的比例基本固定。把这个比例按消耗加权算出来，就是"放大系数"（如 Bondy 整体 D7→D75 = 1.45 倍）。</li>
+      <li><b>第三步·预测：</b>任何一条 campaign，只要跑出了 D0 或 D7 回收，乘上对应系数就能预测它 75 天后的回收，从而提前 2 个多月判断"这条能不能回本"。</li>
+      <li><b>第四步·闭环：</b>用系数倒推出目标线（回本所需的最低 D7/D0 回收）和可承受 CPI，建议单、看板标色、三档止损线全部由此生成；每月第 1 周用最新数据重新校准系数。</li>
+    </ul>
+  </div>
+
+  <h2>试算器</h2>
+  <div class="panel">
+    <div class="filters" style="margin:0 0 10px">
+      <label>App：<select id="m-app"></select></label>
+      <label>渠道：<select id="m-ch"><option value="">整体</option><option>FB</option><option>GG</option><option>TT</option></select></label>
+      <label>已知指标：<select id="m-kind"><option value="d0">D0 ROAS</option><option value="d7">D7 ROAS</option></select></label>
+      <label>数值：<input id="m-val" type="number" step="0.01" placeholder="如 0.45" style="width:80px;padding:4px 8px;border:1px solid var(--line);border-radius:6px"></label>
+      <label>当前 CPI（选填）：<input id="m-cpi" type="number" step="0.1" placeholder="如 5.2" style="width:80px;padding:4px 8px;border:1px solid var(--line);border-radius:6px"></label>
+    </div>
+    <div id="m-out" class="note" style="margin:0">输入数值后自动计算。</div>
+  </div>
+
+  <h2>系数总表（<span id="m-ver"></span>）</h2>
+  <div class="panel"><table id="tbl-mult"></table></div>
+
+  <h2>预测曲线（实线=实际回收，虚线=模型外推）</h2>
+  <div class="panel"><div class="legend" id="mcurve-legend"></div><div id="chart-mcurve"></div></div>
+
+  <h2>回测成绩（模型可信度）</h2>
+  <div class="note">方法：用系数预测 2026 年 3–5 月各月的 D30 回收，与后来实际发生的对比。平均绝对误差 <b id="m-mae"></b>，达标线 15%。</div>
+  <div class="panel"><table id="tbl-bt"></table></div>
 </div>
 
 <div class="wrap" id="view-data" style="display:none">
@@ -463,12 +500,80 @@ makeTable($('tbl-owner'),
   /* 视图切换 */
   document.querySelectorAll('.vtab').forEach(b=>b.onclick=()=>{
     document.querySelectorAll('.vtab').forEach(x=>x.classList.toggle('on',x===b));
-    const board=b.dataset.v==='board';
-    document.getElementById('view-board').style.display=board?'':'none';
-    document.getElementById('view-data').style.display=board?'none':'';
-    document.getElementById('nav').style.display=board?'none':'flex';
+    ['board','data','model'].forEach(v=>document.getElementById('view-'+v).style.display=v===b.dataset.v?'':'none');
+    document.getElementById('nav').style.display=b.dataset.v==='data'?'flex':'none';
     scrollTo(0,0);
   });
+})();
+/* ===== 预估模型页 ===== */
+(function(){
+  const MU=DATA.bench.mult, BT=DATA.bench.backtest;
+  document.getElementById('m-ver').textContent=DATA.bench.ver;
+  document.getElementById('m-mae').textContent=BT.mae+'%';
+  $('m-stats').innerHTML=[['校准版本',DATA.bench.ver.replace(' 校准','')],['回测平均误差',BT.mae+'%'],['训练样本','13 个月'],['样本消耗','$3.58M'],['下次校准','每月第 1 周']]
+    .map(x=>'<div class="bstat"><div class="v" style="font-size:18px">'+x[1]+'</div><div class="l">'+x[0]+'</div></div>').join('');
+  /* 系数总表 */
+  const apps=Object.keys(MU.apps);
+  makeTable($('tbl-mult'),
+    [{t:'App'},{t:'D0→D7 (r)',k:'r70'},{t:'D7→D30',k:'m30'},{t:'D7→D45',k:'m45'},{t:'D7→D75 整体',k:'m75'},{t:'D7→D75 FB'},{t:'D7→D75 GG'},{t:'D7→D75 TT'}],
+    apps.map(a=>({app:a,...MU.apps[a]})),
+    r=>'<tr><td><b>'+esc(r.app)+'</b></td><td class="num">'+fmt2(r.r70)+'</td><td class="num">'+fmt2(r.m30)+'</td><td class="num">'+fmt2(r.m45)+'</td><td class="num"><b>'+fmt2(r.m75)+'</b></td>'
+      +['FB','GG','TT'].map(c=>'<td class="num">'+(MU.chs[r.app+'|'+c]?fmt2(MU.chs[r.app+'|'+c]):'–')+'</td>').join('')+'</tr>');
+  /* 回测表 */
+  makeTable($('tbl-bt'),
+    [{t:'App'},{t:'月份'},{t:'模型预测 D30',k:2},{t:'实际 D30',k:3},{t:'误差'}],
+    BT.rows.map(r=>({0:r[0],1:r[1],2:r[2],3:r[3]})),
+    r=>{const e=(r[2]-r[3])/r[3]*100, cls=Math.abs(e)<=8?'p-good':(Math.abs(e)<=15?'p-warn':'p-bad');
+      return '<tr><td><b>'+esc(r[0])+'</b></td><td>'+r[1]+'</td><td class="num">'+fmt2(r[2])+'</td><td class="num">'+fmt2(r[3])+'</td><td><span class="pill '+cls+'">'+(e>0?'+':'')+e.toFixed(0)+'%</span></td></tr>';});
+  /* 试算器 */
+  const selApp=document.getElementById('m-app');
+  selApp.innerHTML=apps.map(a=>'<option>'+a+'</option>').join('');
+  const calc=()=>{
+    const app=selApp.value, ch=document.getElementById('m-ch').value;
+    const kind=document.getElementById('m-kind').value;
+    const val=parseFloat(document.getElementById('m-val').value);
+    const cpi=parseFloat(document.getElementById('m-cpi').value);
+    const out=document.getElementById('m-out');
+    if(!app||isNaN(val)||val<=0){out.innerHTML='输入数值后自动计算。';return;}
+    const m=MU.apps[app], m75=(ch&&MU.chs[app+'|'+ch])||m.m75;
+    const d7=kind==='d0'?val*m.r70:val;
+    const d30=d7*m.m30, d75=d7*m75, tgt7=1/m75;
+    let h='<div style="font-size:14px;color:var(--ink)">'
+      +(kind==='d0'?'预测 D7 回收 <b>'+d7.toFixed(2)+'</b> · ':'')
+      +'预测 D30 回收 <b>'+d30.toFixed(2)+'</b> · 预测 D75 回收 <b style="font-size:17px;color:'+(d75>=1?'var(--good)':'var(--bad)')+'">'+d75.toFixed(2)+'</b>'
+      +'（目标 D7 = '+tgt7.toFixed(2)+'，'+(d7>=tgt7?'<span class="chip c-green">达标，预计可回本</span>':'<span class="chip c-red">不达标，预计亏 '+Math.round((1-d75)*100)+'%</span>')+'）';
+    if(!isNaN(cpi)&&cpi>0){
+      const allow=cpi*d75;
+      h+='<br>按此质量，可承受 CPI = <b>$'+allow.toFixed(2)+'</b>（当前 $'+cpi.toFixed(2)+'，'
+        +(allow>=cpi?'<span style="color:var(--good);font-weight:600">还有 +'+Math.round((allow/cpi-1)*100)+'% 加价空间</span>':'<span style="color:var(--bad);font-weight:600">超价 '+Math.round((1-allow/cpi)*100)+'%，需降价</span>')+'）';
+    }
+    out.innerHTML=h+'</div>';
+  };
+  ['m-app','m-ch','m-kind','m-val','m-cpi'].forEach(id=>{const el=document.getElementById(id);el.oninput=calc;el.onchange=calc;});
+  /* 预测曲线: 实际到 D30 + 外推到 D75 */
+  const cs=DATA.curves, cols=['#2E75B6','#3A9E63','#E67E22','#8A5CC7'];
+  document.getElementById('mcurve-legend').innerHTML=cs.map((c,i)=>'<span><span class="dot" style="background:'+cols[i%4]+'"></span>'+esc(c.app)+'</span>').join('')+'<span style="color:#98A2AC">红虚线 = 1.0 回本线</span>';
+  const W=680,H=250,padL=36,padR=16,padT=10,padB=24;
+  const ext=c=>{const a7=(c.pts.find(p=>p.x===7)||{}).y; const m=MU.apps[c.app];
+    return a7&&m?[{x:45,y:a7*m.m45},{x:75,y:a7*m.m75}]:[];};
+  const all=cs.flatMap(c=>c.pts.map(p=>p.y).concat(ext(c).map(p=>p.y))).filter(v=>v!=null);
+  const maxV=Math.max(1.2,...all)*1.08;
+  const x=v=>padL+(W-padL-padR)*v/75, y=v=>padT+(H-padT-padB)*(1-v/maxV);
+  let g='';
+  for(let i=0;i<=4;i++){const v=maxV*i/4;g+='<line x1="'+padL+'" y1="'+y(v)+'" x2="'+(W-padR)+'" y2="'+y(v)+'" stroke="#EEF1F5"/><text x="'+(padL-5)+'" y="'+(y(v)+4)+'" font-size="10" fill="#98A2AC" text-anchor="end">'+v.toFixed(1)+'</text>';}
+  g+='<line x1="'+padL+'" y1="'+y(1)+'" x2="'+(W-padR)+'" y2="'+y(1)+'" stroke="#C0392B" stroke-dasharray="4 3" opacity="0.5"/>';
+  cs.forEach((c,i)=>{
+    const pts=c.pts.filter(p=>p.y!=null);
+    g+='<polyline fill="none" stroke="'+cols[i%4]+'" stroke-width="2" points="'+pts.map(p=>x(p.x).toFixed(1)+','+y(p.y).toFixed(1)).join(' ')+'"/>';
+    const e=ext(c), last=pts[pts.length-1];
+    if(e.length&&last){
+      g+='<polyline fill="none" stroke="'+cols[i%4]+'" stroke-width="2" stroke-dasharray="5 4" opacity="0.75" points="'+[last,...e].map(p=>x(p.x).toFixed(1)+','+y(p.y).toFixed(1)).join(' ')+'"/>';
+      g+=e.map(p=>'<circle cx="'+x(p.x).toFixed(1)+'" cy="'+y(p.y).toFixed(1)+'" r="2.6" fill="#fff" stroke="'+cols[i%4]+'" stroke-width="1.6"><title>'+esc(c.app)+' 预测 D'+p.x+' '+p.y.toFixed(2)+'</title></circle>').join('');
+    }
+    g+=pts.map(p=>'<circle cx="'+x(p.x).toFixed(1)+'" cy="'+y(p.y).toFixed(1)+'" r="2.4" fill="'+cols[i%4]+'"><title>'+esc(c.app)+' 实际 D'+p.x+' '+p.y.toFixed(2)+'</title></circle>').join('');
+  });
+  g+=[0,7,14,30,45,75].map(v=>'<text x="'+x(v)+'" y="'+(H-6)+'" font-size="10" fill="#98A2AC" text-anchor="middle">D'+v+'</text>').join('');
+  document.getElementById('chart-mcurve').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:680px">'+g+'</svg>';
 })();
 /* ===== 其他 ===== */
 $('upd').textContent='数据截至 '+DATA.end+' · 更新于 '+DATA.updated;
