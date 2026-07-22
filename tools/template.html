@@ -44,6 +44,27 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 .sug .body{font-size:12.5px;color:#3D4B59;margin-top:4px}
 .sug .why{font-size:11.5px;color:#98A2AC;margin-top:2px}
 .sug.l-stop{border-left-color:var(--bad)}.sug.l-cut{border-left-color:#E67E22}.sug.l-watch{border-left-color:var(--warn)}.sug.l-scale{border-left-color:var(--good)}
+.vtabs{display:flex;gap:6px}
+.vtab{padding:5px 16px;border-radius:16px;border:1px solid var(--line);background:#fff;font-size:13px;color:var(--sub);cursor:pointer;font-family:inherit}
+.vtab.on{background:var(--deep);color:#fff;border-color:var(--deep);font-weight:600}
+.bstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:6px}
+.bstat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 14px}
+.bstat .v{font-size:22px;font-weight:700}.bstat .l{font-size:12px;color:var(--sub)}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start}
+@media(max-width:900px){.board{grid-template-columns:1fr}}
+.col{background:#EDF1F6;border-radius:12px;padding:10px}
+.colhead{font-size:13px;font-weight:700;color:var(--deep);padding:2px 4px 8px}
+.card2{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.card2.l-stop{border-left-color:var(--bad)}.card2.l-cut{border-left-color:#E67E22}.card2.l-watch{border-left-color:var(--warn)}.card2.l-scale{border-left-color:var(--good)}
+.card2 .meta{font-size:11.5px;color:#66727E;margin-top:2px}
+.card2 .act{font-size:12.5px;margin-top:6px}
+.card2 .btns{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.btn-ok{background:var(--good);color:#fff;border:none;border-radius:7px;padding:5px 14px;font-size:12px;cursor:pointer;font-family:inherit}
+.btn-no{background:#fff;color:var(--bad);border:1px solid var(--bad);border-radius:7px;padding:5px 14px;font-size:12px;cursor:pointer;font-family:inherit}
+.btn-undo{background:#fff;color:var(--sub);border:1px solid var(--line);border-radius:7px;padding:4px 12px;font-size:12px;cursor:pointer;font-family:inherit}
+.btn-sec{background:#fff;color:var(--deep);border:1px solid var(--line);border-radius:7px;padding:4px 12px;font-size:12px;cursor:pointer;font-family:inherit}
+.rej{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px}
+.decided{font-size:11.5px;color:var(--sub);margin-top:6px}
 .sharebar{display:inline-block;height:8px;background:var(--blue);border-radius:4px;vertical-align:middle;margin-right:6px}
 .filters{display:flex;gap:10px;margin:8px 0 10px;flex-wrap:wrap;font-size:12px}
 select{padding:3px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px;background:#fff;color:var(--ink)}
@@ -58,14 +79,35 @@ footer{font-size:11px;color:#98A2AC;border-top:1px solid var(--line);padding-top
 </head>
 <body>
 <div class="topbar">
-  <h1>投放数据看板</h1><span class="upd" id="upd"></span>
-  <nav class="nav" id="nav">
+  <h1>投放建议单工作台</h1><span class="upd" id="upd"></span>
+  <div class="vtabs">
+    <button class="vtab on" data-v="board">建议单</button>
+    <button class="vtab" data-v="data">数据明细</button>
+  </div>
+  <nav class="nav" id="nav" style="display:none">
     <a href="#sec-kpi" class="on">总览</a><a href="#sec-sug">建议</a><a href="#sec-trend">趋势</a><a href="#sec-app">App×渠道</a>
     <a href="#sec-cc">国家</a><a href="#sec-curve">回收曲线</a><a href="#sec-camp">Campaign</a>
     <a href="#sec-owner">投手</a><a href="#sec-bench">基准线</a><a href="#sec-def">口径</a>
   </nav>
 </div>
-<div class="wrap">
+
+<div class="wrap" id="view-board">
+  <div class="bstats" id="b-stats"></div>
+  <div class="filters" style="margin:4px 0 14px">
+    <label>投手：<select id="bf-owner"><option value="">全部</option></select></label>
+    <label>类型：<select id="bf-level"><option value="">全部</option><option value="stop">止损</option><option value="cut">降价</option><option value="watch">观察</option><option value="scale">放量</option></select></label>
+    <button class="btn-sec" id="btn-export">导出今日处理记录 CSV</button>
+    <span class="note" style="margin:0">处理结果保存在本设备浏览器；正式多人同步待接入 AgenticUG 后端</span>
+  </div>
+  <div class="board">
+    <div class="col"><div class="colhead">待处理 <span id="n-todo"></span></div><div id="col-todo"></div></div>
+    <div class="col"><div class="colhead" style="color:var(--good)">已采纳 <span id="n-ok"></span></div><div id="col-ok"></div></div>
+    <div class="col"><div class="colhead" style="color:var(--bad)">已拒绝 <span id="n-no"></span></div><div id="col-no"></div></div>
+  </div>
+  <div class="note" style="margin-top:14px">建议由预估模型按基准线（<span id="bver2"></span>）生成，SLA：止损类 2 小时、降价/观察当日、放量 24 小时。拒绝必选理由——这些理由每周汇总反馈给 AgenticUG 迭代模型。</div>
+</div>
+
+<div class="wrap" id="view-data" style="display:none">
 
 <section id="sec-kpi">
   <h2>核心指标（近 7 天 vs 前 7 天）</h2>
@@ -358,6 +400,75 @@ makeTable($('tbl-owner'),
     [{t:'App'},{t:'目标 D0',k:'tgt0'},{t:'🔴 止损线 (D0<)',k:'stop'},{t:'🟡 观察线 (D0<)',k:'watch'},{t:'🟢 放量线 (D0≥)',k:'scale'},{t:'目标 D7',k:'tgt7'},{t:'目标 D30',k:'tgt30'}],
     rows,
     r=>'<tr><td><b>'+esc(r.app)+'</b></td><td class="num">'+fmt2(r.tgt0)+'</td><td class="num" style="color:var(--bad)">'+fmt2(r.stop)+'</td><td class="num" style="color:var(--warn)">'+fmt2(r.watch)+'</td><td class="num" style="color:var(--good)">'+fmt2(r.scale)+'</td><td class="num">'+fmt2(r.tgt7)+'</td><td class="num">'+fmt2(r.tgt30)+'</td></tr>');
+})();
+/* ===== 建议单工作台 ===== */
+(function(){
+  const S=DATA.suggestions||[];
+  const KEY='ua_dec_'+DATA.end;
+  let dec={}; try{dec=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
+  let rejId=null;
+  const save=()=>localStorage.setItem(KEY,JSON.stringify(dec));
+  document.getElementById('bver2').textContent=DATA.bench.ver;
+  const owners=[...new Set(S.map(s=>s.owner||'—'))].sort();
+  $('bf-owner').innerHTML='<option value="">全部</option>'+owners.map(o=>'<option>'+esc(o)+'</option>').join('');
+  const tag={stop:['c-red','止损'],cut:['c-red','降价'],watch:['c-amber','观察'],scale:['c-green','放量']};
+  const REASONS=['数据不认可','时机不对','我有额外信息','其他'];
+  function card(s){
+    const d=dec[s.id];
+    const [cls,lbl]=tag[s.level];
+    let h='<div class="card2 l-'+s.level+'"><div class="head" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px">'
+      +'<span class="chip '+cls+'">'+lbl+'</span><b>'+esc(s.obj.length>46?s.obj.slice(0,44)+'…':s.obj)+'</b></div>'
+      +'<div class="meta">'+(s.owner?'投手 '+esc(s.owner)+' · ':'')+s.scope+' · 消耗 '+fmt$(s.cost)+' · SLA '+s.sla+'</div>'
+      +'<div class="meta">'+esc(s.cur)+' ｜ '+esc(s.pred)+'</div>'
+      +'<div class="act"><b>'+esc(s.action)+'</b></div>'
+      +'<div class="meta">依据：'+esc(s.why)+'</div>';
+    if(!d){
+      if(rejId===s.id){
+        h+='<div class="rej">拒绝理由：<select id="rej-sel">'+REASONS.map(r=>'<option>'+r+'</option>').join('')+'</select>'
+          +'<button class="btn-no" data-c="'+s.id+'">确认拒绝</button><button class="btn-undo" data-x="1">取消</button></div>';
+      } else {
+        h+='<div class="btns"><button class="btn-ok" data-ok="'+s.id+'">✓ 采纳</button><button class="btn-no" data-rej="'+s.id+'">✕ 拒绝</button></div>';
+      }
+    } else {
+      h+='<div class="decided">'+(d.s==='ok'?'✓ 已采纳':'✕ 已拒绝（'+esc(d.r||'')+'）')+' · '+d.t+'　<button class="btn-undo" data-un="'+s.id+'">撤销</button></div>';
+    }
+    return h+'</div>';
+  }
+  function render(){
+    const fo=$('bf-owner').value, fl=$('bf-level').value;
+    const vis=S.filter(s=>(!fo||(s.owner||'—')===fo)&&(!fl||s.level===fl));
+    const todo=vis.filter(s=>!dec[s.id]), ok=vis.filter(s=>dec[s.id]&&dec[s.id].s==='ok'), no=vis.filter(s=>dec[s.id]&&dec[s.id].s==='no');
+    $('col-todo').innerHTML=todo.map(card).join('')||'<div class="note" style="padding:8px">没有待处理的建议 ✓</div>';
+    $('col-ok').innerHTML=ok.map(card).join('');
+    $('col-no').innerHTML=no.map(card).join('');
+    $('n-todo').textContent=todo.length; $('n-ok').textContent=ok.length; $('n-no').textContent=no.length;
+    const done=Object.keys(dec).length, tot=S.length;
+    const okAll=S.filter(s=>dec[s.id]&&dec[s.id].s==='ok').length;
+    $('b-stats').innerHTML=[['今日建议',tot],['已处理',done+' / '+tot],['采纳率',done?Math.round(okAll/done*100)+'%':'–'],['数据截至',DATA.end.slice(5)]]
+      .map(x=>'<div class="bstat"><div class="v">'+x[1]+'</div><div class="l">'+x[0]+'</div></div>').join('');
+    document.querySelectorAll('[data-ok]').forEach(b=>b.onclick=()=>{dec[b.dataset.ok]={s:'ok',t:new Date().toLocaleString('zh-CN')};save();rejId=null;render();});
+    document.querySelectorAll('[data-rej]').forEach(b=>b.onclick=()=>{rejId=b.dataset.rej;render();});
+    document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{const r=document.getElementById('rej-sel').value;dec[b.dataset.c]={s:'no',r:r,t:new Date().toLocaleString('zh-CN')};save();rejId=null;render();});
+    document.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{rejId=null;render();});
+    document.querySelectorAll('[data-un]').forEach(b=>b.onclick=()=>{delete dec[b.dataset.un];save();render();});
+  }
+  $('bf-owner').onchange=render; $('bf-level').onchange=render;
+  $('btn-export').onclick=()=>{
+    const rows=[['日期','类型','对象','投手','建议动作','当前状态','模型预测','决定','拒绝理由','处理时间']];
+    S.forEach(s=>{const d=dec[s.id]||{};rows.push([DATA.end,tag[s.level][1],s.obj,s.owner||'',s.action,s.cur,s.pred,d.s==='ok'?'采纳':(d.s==='no'?'拒绝':'未处理'),d.r||'',d.t||''])});
+    const csv='﻿'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='建议单处理记录_'+DATA.end+'.csv';a.click();
+  };
+  render();
+  /* 视图切换 */
+  document.querySelectorAll('.vtab').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('.vtab').forEach(x=>x.classList.toggle('on',x===b));
+    const board=b.dataset.v==='board';
+    document.getElementById('view-board').style.display=board?'':'none';
+    document.getElementById('view-data').style.display=board?'none':'';
+    document.getElementById('nav').style.display=board?'none':'flex';
+    scrollTo(0,0);
+  });
 })();
 /* ===== 其他 ===== */
 $('upd').textContent='数据截至 '+DATA.end+' · 更新于 '+DATA.updated;

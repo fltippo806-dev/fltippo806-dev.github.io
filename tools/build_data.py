@@ -324,9 +324,14 @@ def build(main, camp):
             c["flag"] = ""
     order = {"stop": 0, "cut": 1, "watch": 2, "scale": 3}
     suggestions.sort(key=lambda s: (order[s["level"]], -s["cost"]))
-    keep = [s for s in suggestions if s["level"] != "scale"][:14]
-    keep += [s for s in suggestions if s["level"] == "scale"][:8]
+    keep = [s for s in suggestions if s["level"] != "scale"][:20]
+    keep += [s for s in suggestions if s["level"] == "scale"][:10]
     suggestions = keep
+    import hashlib as _h
+    SLA = {"stop": "2 小时内", "cut": "当日", "watch": "当日", "scale": "24 小时内"}
+    for s in suggestions:
+        s["id"] = _h.sha1((end.isoformat() + s["level"] + s["obj"]).encode()).hexdigest()[:10]
+        s["sla"] = SLA[s["level"]]
 
     campaigns.sort(key=lambda x: -x["cost"])
     rest = campaigns[60:]
