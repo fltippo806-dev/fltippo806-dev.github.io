@@ -127,6 +127,7 @@ footer{font-size:11px;color:var(--faint);padding-top:14px}
     <div class="sgroup">日常</div>
     <div class="sitem on" data-r="work"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 12l2 2 4-5"/></svg>建议单<span class="bdg" id="sb-badge"></span></div>
     <div class="sitem" data-r="yday"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 15l2.5 2.5L15 13"/></svg>昨日预估</div>
+    <div class="sitem" data-r="live"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>实时盘中<span class="chip c-green" style="margin-left:auto;font-size:9.5px;padding:0 6px">Meta</span></div>
     <div class="sitem" data-r="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 13 7 13 10 5 14 19 17 13 21 13"/></svg>大盘总览</div>
     <div class="sitem" data-r="camp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>Campaign</div>
     <div class="sgroup">分析</div>
@@ -134,6 +135,7 @@ footer{font-size:11px;color:var(--faint);padding-top:14px}
     <div class="sitem" data-r="cc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/></svg>国家</div>
     <div class="sitem" data-r="owner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.5c2.8.3 4.5 2.4 4.5 5.5"/></svg>投手</div>
     <div class="sitem" data-r="curve"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 19 9 12 13 15 21 5"/><polyline points="15 5 21 5 21 11"/></svg>回收曲线</div>
+    <div class="sitem" data-r="creative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M10 8.5l5 2.5-5 2.5zM7 21h10"/></svg>素材分析<span class="chip c-green" style="margin-left:auto;font-size:9.5px;padding:0 6px">Meta</span></div>
     <div class="sgroup">决策依据</div>
     <div class="sitem" data-r="calc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/></svg>试算器</div>
     <div class="sitem" data-r="bench"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>基准线</div>
@@ -179,6 +181,30 @@ footer{font-size:11px;color:var(--faint);padding-top:14px}
       <label>判定 <select id="yf-v"><option value="">全部</option><option value="ok">预计回本</option><option value="bad">预计亏损</option><option value="small">样本不足</option></select></label>
     </div>
     <div class="panel"><table id="tbl-yday"></table></div>
+  </section>
+
+  <!-- ===== 实时盘中 (Meta) ===== -->
+  <section data-r="live" hidden>
+    <div class="note" id="live-note">连接 Meta 中…</div>
+    <div class="bstats" id="live-stats"></div>
+    <div class="filters">
+      <label>账户 <select id="lf-acc"><option value="">全部</option></select></label>
+      <label>投手 <select id="lf-owner"><option value="">全部</option></select></label>
+      <button class="btn-sec" id="live-refresh">立即刷新</button>
+    </div>
+    <div class="panel"><table id="tbl-live"></table></div>
+  </section>
+
+  <!-- ===== 素材分析 (Meta) ===== -->
+  <section data-r="creative" hidden>
+    <div class="note" id="cr-note">连接 Meta 中…</div>
+    <div class="filters">
+      <label>账户 <select id="cf2-acc"><option value="">全部</option></select></label>
+      <label>信号 <select id="cf2-sig"><option value="">全部</option><option>衰减</option><option>频次高</option><option>低效</option></select></label>
+      <button class="btn-sec" id="cr-refresh">刷新</button>
+    </div>
+    <div class="panel"><table id="tbl-cr"></table></div>
+    <div class="note" style="margin-top:10px">信号口径：<b>衰减</b> = 近 3 天 CTR 较前 4 天下降 ≥30%（且 7 天消耗 ≥$50）；<b>频次高</b> = 频次 ≥3；<b>低效</b> = 7 天消耗 ≥$80 且 CTR 低于本账户中位数一半。收入侧判断请回"昨日预估/建议单"（Adjust 口径）。</div>
   </section>
 
   <!-- ===== 大盘总览 ===== -->
@@ -313,6 +339,7 @@ footer{font-size:11px;color:var(--faint);padding-top:14px}
 <nav class="bnav"><div class="row">
   <div class="bni on" data-r="work"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 12l2 2 4-5"/></svg>建议单<span class="bdg" id="bn-badge"></span></div>
   <div class="bni" data-r="yday"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>昨日</div>
+  <div class="bni" data-r="live"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>盘中</div>
   <div class="bni" data-r="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 13 7 13 10 5 14 19 17 13 21 13"/></svg>大盘</div>
   <div class="bni" data-r="camp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>Campaign</div>
   <div class="bni" data-r="calc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01"/></svg>试算</div>
@@ -349,7 +376,7 @@ function delta(cur, prev, costType){
   return '<span class="badge '+(worse?'b-bad':'b-good')+'">'+(pct>0?'+':'')+pct.toFixed(0)+'%</span>';
 }
 /* ===== 路由 ===== */
-const TITLES={work:'建议单',yday:'昨日 Campaign 模型预估',overview:'大盘总览',camp:'Campaign 明细（近 14 天）',app:'App × 渠道',cc:'国家（近 28 天）',owner:'投手汇总（近 14 天）',curve:'批次回收曲线（D0 → D30）',calc:'试算器',bench:'基准线',model:'预估模型',def:'口径说明（v1.1 · 已拍板）'};
+const TITLES={work:'建议单',yday:'昨日 Campaign 模型预估',live:'实时盘中（Meta · 今日）',overview:'大盘总览',camp:'Campaign 明细（近 14 天）',app:'App × 渠道',cc:'国家（近 28 天）',owner:'投手汇总（近 14 天）',curve:'批次回收曲线（D0 → D30）',creative:'素材分析（Meta · 近 7 天）',calc:'试算器',bench:'基准线',model:'预估模型',def:'口径说明（v1.1 · 已拍板）'};
 function go(r){
   document.querySelectorAll('section[data-r]').forEach(s=>s.hidden=s.dataset.r!==r);
   document.querySelectorAll('.sitem,.bni').forEach(el=>el.classList.toggle('on',el.dataset.r===r));
@@ -800,6 +827,157 @@ makeTable($('tbl-cc'),
   });
   g+=[0,7,14,30,45,75].map(v=>'<text x="'+x(v)+'" y="'+(H-6)+'" font-size="10" fill="#98A2B3" text-anchor="middle">D'+v+'</text>').join('');
   $('chart-mcurve').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:680px">'+g+'</svg>';
+})();
+/* ===== Meta 实时模块 (盘中 + 素材) ===== */
+(function(){
+  const RAW='__META_TOKENS__';
+  const TOKENS=RAW.indexOf('__')===0?[]:RAW.split(',').map(s=>s.trim()).filter(Boolean);
+  const noteL=$('live-note'), noteC=$('cr-note');
+  if(!TOKENS.length){noteL.textContent='Meta 未配置钥匙。';noteC.textContent='Meta 未配置钥匙。';return;}
+  const V='v21.0';
+  async function F(path,tok){
+    const r=await fetch('https://graph.facebook.com/'+V+path+(path.includes('?')?'&':'?')+'access_token='+encodeURIComponent(tok));
+    const j=await r.json();
+    if(j.error)throw new Error(j.error.message||'API error');
+    return j;
+  }
+  /* 投手归属(JS 版, 与数据管道同规则简化) */
+  const ROSTER=DATA.owners.map(o=>o.owner).filter(n=>!'未标注,未归属(多名),归属冲突'.includes(n));
+  function jsOwner(name){
+    const toks=String(name||'').trim().split(/[_\s]+/).map(t=>(t.match(/^[A-Za-z]+/)||[''])[0]);
+    const low=toks.map(t=>t.toLowerCase());
+    if(low.includes('yz')&&low.includes('lio'))return '归属冲突';
+    if(low.includes('yz'))return 'yz';
+    if(low.includes('lio'))return 'lio';
+    const found=new Set();
+    toks.forEach(t=>{const p=t.charAt(0).toUpperCase()+t.slice(1).toLowerCase();
+      ROSTER.forEach(rn=>{if(rn.length>=3&&p.indexOf(rn)===0)found.add(rn);});});
+    if(found.size===1)return [...found][0];
+    return found.size?'未归属':'未标注';
+  }
+  let ACC=null, accErrs=[];
+  async function discover(){
+    if(ACC)return;
+    ACC=[]; accErrs=[];
+    for(let i=0;i<TOKENS.length;i++){
+      try{
+        const j=await F('/me/adaccounts?fields=name,account_id&limit=100',TOKENS[i]);
+        (j.data||[]).forEach(a=>ACC.push({id:a.id,name:a.name||a.id,tok:TOKENS[i],bm:'BM'+(i+1)}));
+      }catch(e){accErrs.push('钥匙'+(i+1)+'：'+String(e.message).slice(0,80));}
+    }
+  }
+  const num=v=>parseFloat(v||0)||0;
+  /* --- 实时盘中 --- */
+  let liveRows=[], liveLoaded=false, liveTbl=null;
+  function renderLive(){
+    const fa=$('lf-acc').value, fo=$('lf-owner').value;
+    const rows=liveRows.filter(r=>(!fa||r.acc===fa)&&(!fo||r.owner===fo));
+    const tot=rows.reduce((a,r)=>a+r.spend,0);
+    $('live-stats').innerHTML=[['今日消耗(此刻)','$'+Math.round(liveRows.reduce((a,r)=>a+r.spend,0)).toLocaleString()],
+      ['在投 Campaign',liveRows.filter(r=>r.spend>0).length],['账户数',ACC.length],['刷新于',new Date().toTimeString().slice(0,5)]]
+      .map(x=>'<div class="bstat"><div class="v" style="font-size:19px">'+x[1]+'</div><div class="l">'+x[0]+'</div></div>').join('');
+    if(!liveTbl){
+      liveTbl=makeTable($('tbl-live'),
+        [{t:'Campaign'},{t:'账户'},{t:'投手'},{t:'今日消耗',k:'spend'},{t:'CPM',k:'cpm'},{t:'CTR',k:'ctr'},{t:'频次',k:'freq'},{t:'展示',k:'imp'}],
+        rows,
+        r=>'<tr><td title="'+esc(r.name)+'">'+esc(r.name.length>40?r.name.slice(0,38)+'…':r.name)+'</td><td>'+esc(r.acc)+'</td><td>'+esc(r.owner)+'</td><td class="num">$'+r.spend.toFixed(0)+'</td><td class="num">'+r.cpm.toFixed(2)+'</td><td class="num">'+r.ctr.toFixed(2)+'%</td><td class="num'+(r.freq>=3?'" style="color:var(--bad);font-weight:700':'')+'">'+r.freq.toFixed(2)+'</td><td class="num">'+r.imp.toLocaleString()+'</td></tr>');
+    } else liveTbl.setRows(rows);
+  }
+  async function loadLive(force){
+    if(liveLoaded&&!force)return;
+    noteL.textContent='拉取 Meta 实时数据中…';
+    await discover();
+    if(!ACC.length){noteL.textContent='未发现可用广告账户。'+accErrs.join('；');return;}
+    liveRows=[]; const errs=[...accErrs];
+    await Promise.all(ACC.map(async a=>{
+      try{
+        const j=await F('/'+a.id+'/insights?date_preset=today&level=campaign&fields=campaign_name,spend,impressions,clicks,cpm,ctr,frequency&limit=200',a.tok);
+        (j.data||[]).forEach(d=>liveRows.push({name:d.campaign_name||'',acc:a.name,owner:jsOwner(d.campaign_name),
+          spend:num(d.spend),imp:num(d.impressions),cpm:num(d.cpm),ctr:num(d.ctr),freq:num(d.frequency)}));
+      }catch(e){errs.push(a.name+'：'+String(e.message).slice(0,60));}
+    }));
+    liveRows.sort((a,b)=>b.spend-a.spend);
+    liveLoaded=true;
+    const opts=(arr,id)=>{const cur=$(id).value;$(id).innerHTML='<option value="">全部</option>'+[...new Set(arr)].sort().map(v=>'<option>'+esc(v)+'</option>').join('');$(id).value=cur;};
+    opts(liveRows.map(r=>r.acc),'lf-acc'); opts(liveRows.map(r=>r.owner),'lf-owner');
+    noteL.textContent=(errs.length?'部分失败：'+errs.join('；')+' · ':'')+'今天从 0 点到现在的实时数据，约 5 分钟自动刷新；消耗为 Meta 渠道口径，与 Adjust 口径存在正常差异。';
+    renderLive();
+  }
+  ['lf-acc','lf-owner'].forEach(id=>$(id).onchange=renderLive);
+  $('live-refresh').onclick=()=>loadLive(true);
+  setInterval(()=>{if(liveLoaded&&!document.querySelector('section[data-r="live"]').hidden)loadLive(true);},300000);
+  /* --- 素材分析 --- */
+  let crLoaded=false, crTbl=null, crRows=[];
+  function renderCr(){
+    const fa=$('cf2-acc').value, fs=$('cf2-sig').value;
+    const rows=crRows.filter(r=>(!fa||r.acc===fa)&&(!fs||r.sigs.includes(fs)));
+    const chip=s=>({'衰减':'c-amber','频次高':'c-red','低效':'c-red'})[s];
+    if(!crTbl){
+      crTbl=makeTable($('tbl-cr'),
+        [{t:'素材(广告)'},{t:'账户'},{t:'Campaign'},{t:'7天消耗',k:'spend'},{t:'CTR',k:'ctr'},{t:'CTR趋势',k:'trend'},{t:'频次',k:'freq'},{t:'信号'}],
+        rows,
+        r=>'<tr><td title="'+esc(r.name)+'">'+esc(r.name.length>34?r.name.slice(0,32)+'…':r.name)+'</td><td>'+esc(r.acc)+'</td><td title="'+esc(r.camp)+'">'+esc(r.camp.length>24?r.camp.slice(0,22)+'…':r.camp)+'</td><td class="num">$'+r.spend.toFixed(0)+'</td><td class="num">'+r.ctr.toFixed(2)+'%</td><td class="num" style="color:'+(r.trend<0?'var(--bad)':'var(--good)')+'">'+(r.trend>0?'+':'')+Math.round(r.trend*100)+'%</td><td class="num">'+r.freq.toFixed(2)+'</td><td>'+r.sigs.map(s=>'<span class="chip '+chip(s)+'">'+s+'</span>').join(' ')+'</td></tr>');
+    } else crTbl.setRows(rows);
+  }
+  async function loadCreative(force){
+    if(crLoaded&&!force)return;
+    noteC.textContent='拉取近 7 天素材数据中…';
+    await discover();
+    if(!ACC.length){noteC.textContent='未发现可用广告账户。'+accErrs.join('；');return;}
+    const perAd={}; const errs=[...accErrs];
+    await Promise.all(ACC.map(async a=>{
+      try{
+        let path='/'+a.id+'/insights?date_preset=last_7d&level=ad&time_increment=1&fields=ad_name,campaign_name,spend,impressions,clicks,frequency&limit=300';
+        for(let pg=0;pg<3&&path;pg++){
+          const j=await F(path,a.tok);
+          (j.data||[]).forEach(d=>{
+            const k=a.id+'|'+(d.ad_name||'');
+            const o=perAd[k]=perAd[k]||{name:d.ad_name||'',acc:a.name,camp:d.campaign_name||'',days:{},freq:0};
+            const day=d.date_start;
+            const dd=o.days[day]=o.days[day]||{sp:0,imp:0,cl:0};
+            dd.sp+=num(d.spend); dd.imp+=num(d.impressions); dd.cl+=num(d.clicks);
+            o.freq=Math.max(o.freq,num(d.frequency));
+          });
+          path=j.paging&&j.paging.next?j.paging.next.replace('https://graph.facebook.com/'+V,''):null;
+          if(path)path=path.replace(/([&?])access_token=[^&]*/,'$1').replace(/[&?]$/,'');
+        }
+      }catch(e){errs.push(a.name+'：'+String(e.message).slice(0,60));}
+    }));
+    crRows=Object.values(perAd).map(o=>{
+      const ds=Object.keys(o.days).sort();
+      const sum=f=>ds.reduce((x,d)=>x+o.days[d][f],0);
+      const spend=sum('sp'), imp=sum('imp'), cl=sum('cl');
+      const ctr=imp?cl/imp*100:0;
+      const recent=ds.slice(-3), prior=ds.slice(0,-3);
+      const cr=(arr,f)=>arr.reduce((x,d)=>x+o.days[d][f],0);
+      const ctrR=cr(recent,'imp')?cr(recent,'cl')/cr(recent,'imp'):0;
+      const ctrP=cr(prior,'imp')?cr(prior,'cl')/cr(prior,'imp'):0;
+      const trend=ctrP?(ctrR-ctrP)/ctrP:0;
+      return {name:o.name,acc:o.acc,camp:o.camp,spend,ctr,freq:o.freq,trend,sigs:[]};
+    }).filter(r=>r.spend>=5);
+    const med={};
+    [...new Set(crRows.map(r=>r.acc))].forEach(acc=>{
+      const cs=crRows.filter(r=>r.acc===acc).map(r=>r.ctr).sort((a,b)=>a-b);
+      med[acc]=cs.length?cs[Math.floor(cs.length/2)]:0;
+    });
+    crRows.forEach(r=>{
+      if(r.spend>=50&&r.trend<=-0.3)r.sigs.push('衰减');
+      if(r.freq>=3)r.sigs.push('频次高');
+      if(r.spend>=80&&med[r.acc]&&r.ctr<med[r.acc]/2)r.sigs.push('低效');
+    });
+    crRows.sort((a,b)=>b.spend-a.spend);
+    crLoaded=true;
+    const cur=$('cf2-acc').value;
+    $('cf2-acc').innerHTML='<option value="">全部</option>'+[...new Set(crRows.map(r=>r.acc))].sort().map(v=>'<option>'+esc(v)+'</option>').join('');
+    $('cf2-acc').value=cur;
+    noteC.textContent=(errs.length?'部分失败：'+errs.join('；')+' · ':'')+'近 7 天素材级表现（Meta 渠道口径），共 '+crRows.length+' 条素材，信号 '+crRows.filter(r=>r.sigs.length).length+' 条。每周给剪辑过一遍"衰减/低效"清单。';
+    renderCr();
+  }
+  ['cf2-acc','cf2-sig'].forEach(id=>$(id).onchange=renderCr);
+  $('cr-refresh').onclick=()=>loadCreative(true);
+  /* 懒加载: 进入对应页面才拉数 */
+  document.querySelectorAll('[data-r="live"]').forEach(el=>el.addEventListener('click',()=>loadLive(false)));
+  document.querySelectorAll('[data-r="creative"]').forEach(el=>el.addEventListener('click',()=>loadCreative(false)));
 })();
 /* ===== 其他 ===== */
 $('upd').innerHTML='数据截至 <b>'+DATA.end+'</b><span class="upd2"> · 更新于 '+DATA.updated+'</span>';
