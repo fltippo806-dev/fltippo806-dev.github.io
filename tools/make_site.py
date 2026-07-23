@@ -7,56 +7,7 @@
 加密: PBKDF2-SHA256(250k) -> AES-256-GCM, 与页面内 WebCrypto 解密逻辑一一对应。
 """
 import argparse, base64, json, os, sys, hashlib, gzip
-from pathlib import Path
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding
-
-
-def _resolve_input(path, fallback_dir):
-    candidate = Path(path)
-    if candidate.is_file():
-        return candidate
-    candidate = fallback_dir / path
-    if candidate.is_file():
-        return candidate
-    return Path(path)
-
-
-def write_notification_feed(data, public_key_path, out_path):
-    """Write a machine-readable suggestion feed that only the Lark bot can decrypt."""
-    feed = {
-        "schema_version": 1,
-        "updated": data.get("updated"),
-        "end": data.get("end"),
-        "suggestions": data.get("suggestions") or [],
-    }
-    plaintext = json.dumps(
-        feed, ensure_ascii=False, separators=(",", ":"), sort_keys=True
-    ).encode("utf-8")
-    content_key = AESGCM.generate_key(bit_length=256)
-    iv = os.urandom(12)
-    ciphertext = AESGCM(content_key).encrypt(iv, plaintext, None)
-    public_key = serialization.load_pem_public_key(Path(public_key_path).read_bytes())
-    wrapped_key = public_key.encrypt(
-        content_key,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None,
-        ),
-    )
-    payload = {
-        "v": 1,
-        "alg": "RSA-OAEP-256+A256GCM",
-        "key": base64.b64encode(wrapped_key).decode("ascii"),
-        "iv": base64.b64encode(iv).decode("ascii"),
-        "ciphertext": base64.b64encode(ciphertext).decode("ascii"),
-    }
-    Path(out_path).write_text(
-        json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
-        encoding="utf-8",
-    )
 
 LOADER3 = """<!DOCTYPE html>
 <html lang="zh-CN">
@@ -278,20 +229,13 @@ def main():
     ap.add_argument('--template', default='template.html')
     ap.add_argument('--out', default='index.html')
     ap.add_argument('--plain-out', default='plain.html')
-    ap.add_argument('--notification-out', default='')
-    ap.add_argument('--notification-public-key', default='lark-suggestion-public-key.pem')
     a = ap.parse_args()
 
-    script_dir = Path(__file__).resolve().parent
-    tpl = open(a.template, encoding='utf-8').read()
+    import datetime as _dt
+    build_ts = _dt.datetime.utcnow().strftime('%m%d-%H%M')
+    tpl = open(a.template, encoding='utf-8').read().replace('__BUILD_TS__', build_ts)
     data = open(a.data, encoding='utf-8').read()
-    parsed_data = json.loads(data)  # validate
-    public_key_path = _resolve_input(a.notification_public_key, script_dir)
-    notification_out = Path(a.notification_out) if a.notification_out else Path(a.out).with_name('suggestions.enc.json')
-    if public_key_path.is_file():
-        write_notification_feed(parsed_data, public_key_path, notification_out)
-    elif a.notification_out:
-        raise FileNotFoundError('Notification public key not found: %s' % public_key_path)
+    json.loads(data)  # validate
     b64script = ''
     if os.path.exists('build_data.py'):
         b64script = base64.b64encode(open('build_data.py', 'rb').read()).decode()
