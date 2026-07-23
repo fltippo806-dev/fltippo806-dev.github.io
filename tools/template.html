@@ -999,18 +999,32 @@ makeTable($('tbl-cc'),
     bg.querySelector('#diag-close').onclick=()=>bg.remove();
     bg.onclick=e=>{if(e.target===bg)bg.remove();};
     const out=bg.querySelector('#diag-out');
-    const probes=[['身份 /me','/me?fields=id,name'],['账户列表 /me/adaccounts','/me/adaccounts?fields=name,account_id&limit=10'],['商务实体 /me/businesses','/me/businesses?fields=name&limit=5']];
+    const redact=s=>TOKENS.reduce((t,k)=>t.split(k).join('***'),String(s));
+    async function probe(lbl,p,tok,cut){
+      out.textContent+='· '+lbl+' → ';
+      try{
+        const r=await fetch(BASE+'/'+VER+p+(p.includes('?')?'&':'?')+'access_token='+encodeURIComponent(tok));
+        const j=await r.json();
+        out.textContent+='HTTP '+r.status+' '+redact(JSON.stringify(j)).slice(0,cut||300)+'\n';
+      }catch(e){out.textContent+='请求失败: '+redact(String(e.message||e)).slice(0,120)+'\n';}
+    }
+    if(!ACC)try{await discover();}catch(e){}
     for(let i=0;i<TOKENS.length;i++){
       out.textContent+='══ 钥匙 '+(i+1)+'（…'+TOKENS[i].slice(-6)+'）══\n';
-      for(const [lbl,p] of probes){
-        out.textContent+='· '+lbl+' → ';
-        try{
-          const r=await fetch(BASE+'/'+VER+p+'&access_token='+encodeURIComponent(TOKENS[i]));
-          const j=await r.json();
-          out.textContent+='HTTP '+r.status+' '+JSON.stringify(j).slice(0,300)+'\n';
-        }catch(e){out.textContent+='请求失败: '+String(e.message||e).slice(0,120)+'\n';}
-      }
+      await probe('身份 /me','/me?fields=id,name',TOKENS[i]);
+      await probe('权限清单 /me/permissions','/me/permissions',TOKENS[i],400);
+      await probe('令牌体检 /debug_token','/debug_token?input_token='+encodeURIComponent(TOKENS[i]),TOKENS[i],400);
+      await probe('账户列表 /me/adaccounts','/me/adaccounts?fields=name,account_id&summary=total_count&limit=10',TOKENS[i]);
+      await probe('指派账户 /me/assigned_ad_accounts','/me/assigned_ad_accounts?fields=name,account_id&limit=10',TOKENS[i],200);
+      await probe('商务实体 /me/businesses','/me/businesses?fields=name&limit=5',TOKENS[i],200);
       out.textContent+='\n';
+    }
+    const ids=[...new Set((ACC||[]).map(a=>a.id))];
+    if(ids.length){
+      out.textContent+='══ 交叉探测：每把钥匙读取已发现的账户 ══\n';
+      for(let i=0;i<TOKENS.length;i++)
+        for(const id of ids)
+          await probe('钥匙'+(i+1)+' 读 '+id,'/'+id+'?fields=name,account_status',TOKENS[i],160);
     }
   };
   setInterval(()=>{if(liveLoaded&&!document.querySelector('section[data-r="live"]').hidden)loadLive(true);},300000);
