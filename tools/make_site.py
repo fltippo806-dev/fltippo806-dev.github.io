@@ -72,6 +72,7 @@ if(saved){document.getElementById('pw').value=saved;go().catch(()=>{localStorage
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--password', required=True)
+    ap.add_argument('--sync-token', default='')
     ap.add_argument('--data', default='data.json')
     ap.add_argument('--template', default='template.html')
     ap.add_argument('--out', default='index.html')
@@ -85,6 +86,8 @@ def main():
     if os.path.exists('build_data.py'):
         b64script = base64.b64encode(open('build_data.py', 'rb').read()).decode()
     plain = tpl.replace('__DATA__', data).replace('__BUILD_B64__', b64script)
+    if a.sync_token:
+        plain = plain.replace('__SYNC_TOKEN__', a.sync_token)
     assert '__DATA__' not in plain and plain.rstrip().endswith('</html>')
     open(a.plain_out, 'w', encoding='utf-8').write(plain)
 

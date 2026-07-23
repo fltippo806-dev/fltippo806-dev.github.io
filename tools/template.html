@@ -84,6 +84,17 @@ footer{font-size:11px;color:var(--faint);padding-top:14px}
 .seg{display:none;background:#E7EBF1;border-radius:10px;padding:3px;margin-bottom:12px}
 .seg button{flex:1;border:none;background:transparent;padding:8px 4px;border-radius:8px;font-size:13px;color:var(--sub);font-family:inherit;font-weight:600}
 .seg button.on{background:#fff;color:var(--ink);box-shadow:var(--shadow)}
+.syncline{font-size:12px;color:var(--sub);margin:2px 0 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sdot{width:8px;height:8px;border-radius:50%;background:var(--good);display:inline-block}
+.sdot.err{background:var(--bad)}
+.who{color:var(--accent);font-weight:700;cursor:pointer;text-decoration:underline dotted}
+.modal-bg{position:fixed;inset:0;background:rgba(16,27,40,.55);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:#fff;border-radius:14px;padding:26px 28px;width:360px;max-width:100%;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.modal h3{font-size:16px;margin-bottom:4px}
+.modal p{font-size:12px;color:var(--sub);margin-bottom:14px}
+.idgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.idbtn{padding:10px 8px;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.idbtn:hover{border-color:var(--accent);color:var(--accent)}
 /* ===== 底部导航 (移动端) ===== */
 .bnav{display:none;position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);z-index:60;padding:4px 0 calc(4px + env(safe-area-inset-bottom))}
 .bnav .row{display:flex}
@@ -139,6 +150,7 @@ footer{font-size:11px;color:var(--faint);padding-top:14px}
   <!-- ===== 建议单工作台 ===== -->
   <section data-r="work">
     <div class="bstats" id="b-stats"></div>
+    <div class="syncline" id="sync-line"></div>
     <div class="filters">
       <label>投手 <select id="bf-owner"><option value="">全部</option></select></label>
       <label>类型 <select id="bf-level"><option value="">全部</option><option value="stop">止损</option><option value="cut">降价</option><option value="watch">观察</option><option value="scale">放量</option></select></label>
@@ -154,7 +166,7 @@ footer{font-size:11px;color:var(--faint);padding-top:14px}
       <div class="col" data-c="ok"><div class="colhead" style="color:var(--good)">已采纳 <b id="n-ok"></b></div><div id="col-ok"></div></div>
       <div class="col" data-c="no"><div class="colhead" style="color:var(--bad)">已拒绝 <b id="n-no"></b></div><div id="col-no"></div></div>
     </div>
-    <div class="note" style="margin-top:14px">建议由预估模型按基准线（<span id="bver2"></span>）生成。SLA：止损 2 小时、降价/观察当日、放量 24 小时。拒绝必选理由，每周汇总反馈给 AgenticUG。处理结果保存在本设备浏览器，多人同步待接入后端。</div>
+    <div class="note" style="margin-top:14px">建议由预估模型按基准线（<span id="bver2"></span>）生成。SLA：止损 2 小时、降价/观察当日、放量 24 小时。拒绝必选理由，每周汇总反馈给 AgenticUG。处理记录多人实时同步（约 1 分钟内互相可见），断网时先记本机、恢复后自动补传。</div>
   </section>
 
   <!-- ===== 昨日预估 ===== -->
@@ -526,13 +538,101 @@ makeTable($('tbl-cc'),
   const apply=()=>t.setRows(Y.filter(r=>(!$('yf-app').value||r.app===$('yf-app').value)&&(!$('yf-owner').value||r.owner===$('yf-owner').value)&&(!$('yf-v').value||verdict(r)===$('yf-v').value)));
   ['yf-app','yf-owner','yf-v'].forEach(id=>$(id).onchange=apply);
 })();
-/* ===== 建议单工作台 ===== */
+/* ===== 建议单工作台（多人同步版） ===== */
 (function(){
   const S=DATA.suggestions||[];
-  const KEY='ua_dec_'+DATA.end;
-  let dec={}; try{dec=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
-  let rejId=null, mobCol='todo';
-  const save=()=>localStorage.setItem(KEY,JSON.stringify(dec));
+  const SYNC={repo:'fltippo806-dev/ua-board-data',token:'__SYNC_TOKEN__'};
+  const syncOn=!SYNC.token.startsWith('__');
+  const LKEY='ua_loc_'+DATA.end;
+  let localEntries=[]; try{localEntries=JSON.parse(localStorage.getItem(LKEY)||'[]')}catch(e){}
+  let remoteEntries=[], dec={}, rejId=null, mobCol='todo';
+  let user=localStorage.getItem('ua_user')||'', lastSync=null, syncErr=false, issueNo=null;
+  const saveLoc=()=>localStorage.setItem(LKEY,JSON.stringify(localEntries));
+  const fold=()=>{
+    const m={};
+    remoteEntries.concat(localEntries).forEach(e=>{
+      if(!e||!e.sid)return;
+      if(!m[e.sid]||e.ts>m[e.sid].ts)m[e.sid]=e;
+    });
+    dec={};
+    Object.values(m).forEach(e=>{if(e.s==='ok'||e.s==='no')dec[e.sid]={s:e.s,r:e.r||'',t:e.t||'',u:e.u||'',ts:e.ts};});
+  };
+  /* --- GitHub Issues 同步 --- */
+  const gh=(path,opts={})=>fetch('https://api.github.com'+path,{...opts,
+    headers:{'Authorization':'Bearer '+SYNC.token,'Accept':'application/vnd.github+json',
+             ...(opts.body?{'Content-Type':'application/json'}:{})}});
+  const TITLE='decisions-'+DATA.end.slice(0,7);
+  async function findIssues(){
+    const r=await gh('/repos/'+SYNC.repo+'/issues?state=all&per_page=50');
+    if(!r.ok)throw 0;
+    return (await r.json()).filter(i=>i.title===TITLE).map(i=>i.number).sort((a,b)=>a-b);
+  }
+  async function ensureIssue(){
+    if(issueNo)return issueNo;
+    const ns=await findIssues();
+    if(ns.length){issueNo=ns[0];return issueNo;}
+    const r=await gh('/repos/'+SYNC.repo+'/issues',{method:'POST',body:JSON.stringify({title:TITLE,body:'建议单处理记录（自动生成，请勿手动编辑）'})});
+    if(!r.ok)throw 0;
+    issueNo=(await r.json()).number; return issueNo;
+  }
+  async function pull(){
+    if(!syncOn)return;
+    try{
+      const ns=await findIssues();
+      const all=[];
+      for(const n of ns){
+        for(let p=1;p<=5;p++){
+          const r=await gh('/repos/'+SYNC.repo+'/issues/'+n+'/comments?per_page=100&page='+p);
+          if(!r.ok)throw 0;
+          const cs=await r.json();
+          cs.forEach(c=>{try{const e=JSON.parse(c.body);if(e&&e.sid)all.push(e);}catch(x){}});
+          if(cs.length<100)break;
+        }
+      }
+      remoteEntries=all;
+      // 已被远端确认的本地条目可清理
+      const rids=new Set(all.map(e=>e.id));
+      localEntries=localEntries.filter(e=>!rids.has(e.id));
+      saveLoc();
+      syncErr=false; lastSync=new Date();
+    }catch(e){syncErr=true;}
+  }
+  async function push(e){
+    if(!syncOn)return;
+    try{
+      const n=await ensureIssue();
+      const r=await gh('/repos/'+SYNC.repo+'/issues/'+n+'/comments',{method:'POST',body:JSON.stringify({body:JSON.stringify(e)})});
+      if(!r.ok)throw 0;
+      e.sent=1; saveLoc(); syncErr=false;
+    }catch(x){syncErr=true; renderSync();}
+  }
+  function act(sid,s,r){
+    const e={id:Math.random().toString(36).slice(2,10),sid,s,r:r||'',u:user||'未署名',
+             ts:Date.now(),t:new Date().toLocaleString('zh-CN')};
+    localEntries.push(e); saveLoc(); fold(); rejId=null; render(); push(e);
+  }
+  /* --- 身份 --- */
+  function askIdentity(force){
+    if(user&&!force)return;
+    const names=[...new Set([...DATA.owners.map(o=>o.owner).filter(n=>!'未标注,未归属(多名),归属冲突'.includes(n)),'负责人'])];
+    const bg=document.createElement('div'); bg.className='modal-bg';
+    bg.innerHTML='<div class="modal"><h3>你是谁？</h3><p>选择身份后，你的处理记录会实时同步给全团队</p><div class="idgrid">'
+      +names.map(n=>'<button class="idbtn">'+esc(n)+'</button>').join('')
+      +'</div><p style="margin-top:12px">或输入：<input id="id-custom" style="width:120px;padding:4px 8px;border:1px solid var(--line);border-radius:6px"> <button class="btn-sec" id="id-go">确定</button></p></div>';
+    document.body.appendChild(bg);
+    const done=n=>{if(!n)return; user=n; localStorage.setItem('ua_user',n); bg.remove(); renderSync(); render();};
+    bg.querySelectorAll('.idbtn').forEach(b=>b.onclick=()=>done(b.textContent));
+    bg.querySelector('#id-go').onclick=()=>done(bg.querySelector('#id-custom').value.trim());
+  }
+  function renderSync(){
+    const el=$('sync-line'); if(!el)return;
+    if(!syncOn){el.innerHTML='<span class="sdot err"></span>多人同步未配置，仅本机记录';return;}
+    el.innerHTML='<span class="sdot'+(syncErr?' err':'')+'"></span>'
+      +(syncErr?'同步失败（网络/权限），已先记在本机，恢复后自动补传':'多人实时同步已开启')
+      +' · 我的身份：<span class="who" id="who-btn">'+esc(user||'未选择')+'</span>'
+      +(lastSync?' · 上次同步 '+lastSync.toTimeString().slice(0,5):'');
+    const wb=document.getElementById('who-btn'); if(wb)wb.onclick=()=>askIdentity(true);
+  }
   $('bver2').textContent=DATA.bench.ver;
   const cnt={}; S.forEach(s=>{const o=s.owner||'—';cnt[o]=(cnt[o]||0)+1;});
   const roster=DATA.owners.map(o=>o.owner);                       // 完整投手名册(按消耗排序)
@@ -558,7 +658,7 @@ makeTable($('tbl-cc'),
         h+='<div class="btns"><button class="btn-ok" data-ok="'+s.id+'">✓ 采纳</button><button class="btn-no" data-rej="'+s.id+'">✕ 拒绝</button></div>';
       }
     } else {
-      h+='<div class="decided">'+(d.s==='ok'?'✓ 已采纳':'✕ 已拒绝（'+esc(d.r||'')+'）')+' · '+d.t+'　<button class="btn-undo" data-un="'+s.id+'">撤销</button></div>';
+      h+='<div class="decided">'+(d.s==='ok'?'✓ 已采纳':'✕ 已拒绝（'+esc(d.r||'')+'）')+(d.u?' · 处理人 <b>'+esc(d.u)+'</b>':'')+' · '+d.t+'　<button class="btn-undo" data-un="'+s.id+'">撤销</button></div>';
     }
     return h+'</div>';
   }
@@ -577,11 +677,12 @@ makeTable($('tbl-cc'),
     const okAll=S.filter(s=>dec[s.id]&&dec[s.id].s==='ok').length;
     $('b-stats').innerHTML=[['今日建议',tot],['已处理',done+' / '+tot],['采纳率',done?Math.round(okAll/done*100)+'%':'–'],['数据截至',DATA.end.slice(5)]]
       .map(x=>'<div class="bstat"><div class="v">'+x[1]+'</div><div class="l">'+x[0]+'</div></div>').join('');
-    document.querySelectorAll('[data-ok]').forEach(b=>b.onclick=()=>{dec[b.dataset.ok]={s:'ok',t:new Date().toLocaleString('zh-CN')};save();rejId=null;render();});
-    document.querySelectorAll('[data-rej]').forEach(b=>b.onclick=()=>{rejId=b.dataset.rej;render();});
-    document.querySelectorAll('[data-cf]').forEach(b=>b.onclick=()=>{const r=document.getElementById('rej-sel').value;dec[b.dataset.cf]={s:'no',r:r,t:new Date().toLocaleString('zh-CN')};save();rejId=null;render();});
+    document.querySelectorAll('[data-ok]').forEach(b=>b.onclick=()=>{if(!user){askIdentity();return;}act(b.dataset.ok,'ok');});
+    document.querySelectorAll('[data-rej]').forEach(b=>b.onclick=()=>{if(!user){askIdentity();return;}rejId=b.dataset.rej;render();});
+    document.querySelectorAll('[data-cf]').forEach(b=>b.onclick=()=>{const r=document.getElementById('rej-sel').value;act(b.dataset.cf,'no',r);});
     document.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{rejId=null;render();});
-    document.querySelectorAll('[data-un]').forEach(b=>b.onclick=()=>{delete dec[b.dataset.un];save();render();});
+    document.querySelectorAll('[data-un]').forEach(b=>b.onclick=()=>{act(b.dataset.un,'undo');});
+    renderSync();
   }
   $('bf-owner').onchange=render; $('bf-level').onchange=render;
   document.querySelectorAll('#bseg button').forEach(b=>b.onclick=()=>{
@@ -590,12 +691,21 @@ makeTable($('tbl-cc'),
     document.querySelectorAll('.board .col').forEach(c=>c.classList.toggle('mob-on',c.dataset.c===mobCol));
   });
   $('btn-export').onclick=()=>{
-    const rows=[['日期','类型','对象','投手','建议动作','当前状态','模型预测','决定','拒绝理由','处理时间']];
-    S.forEach(s=>{const d=dec[s.id]||{};rows.push([DATA.end,tag[s.level][1],s.obj,s.owner||'',s.action,s.cur,s.pred,d.s==='ok'?'采纳':(d.s==='no'?'拒绝':'未处理'),d.r||'',d.t||''])});
+    const rows=[['日期','类型','对象','投手','建议动作','当前状态','模型预测','决定','拒绝理由','处理人','处理时间']];
+    S.forEach(s=>{const d=dec[s.id]||{};rows.push([DATA.end,tag[s.level][1],s.obj,s.owner||'',s.action,s.cur,s.pred,d.s==='ok'?'采纳':(d.s==='no'?'拒绝':'未处理'),d.r||'',d.u||'',d.t||''])});
     const csv='﻿'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='建议单处理记录_'+DATA.end+'.csv';a.click();
   };
-  render();
+  fold(); render(); renderSync();
+  if(syncOn){
+    askIdentity();
+    (async()=>{await pull(); fold(); render();})();
+    setInterval(async()=>{
+      localEntries.filter(e=>!e.sent).forEach(push);
+      await pull(); fold(); render();
+    },60000);
+    document.addEventListener('visibilitychange',async()=>{if(!document.hidden){await pull();fold();render();}});
+  }
 })();
 /* ===== 预估模型页 ===== */
 (function(){
