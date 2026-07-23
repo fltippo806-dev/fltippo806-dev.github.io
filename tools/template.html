@@ -906,8 +906,15 @@ makeTable($('tbl-cc'),
     for(let i=0;i<TOKENS.length;i++){
       try{
         const j=await F('/me/adaccounts?fields=name,account_id&limit=100',TOKENS[i]);
+        const n=(j.data||[]).length;
         (j.data||[]).forEach(a=>ACC.push({id:a.id,name:a.name||a.id,tok:TOKENS[i],bm:'BM'+(i+1)}));
-      }catch(e){accErrs.push('钥匙'+(i+1)+'：'+String(e.message).slice(0,80));}
+        if(!n)accErrs.push('钥匙'+(i+1)+'：连接成功，但名下未分配任何广告账户——到该 BM 的商务管理平台 → 系统用户 → 分配资产 → 勾选广告账户（查看表现）');
+        else accErrs.push('钥匙'+(i+1)+'：✓ 发现 '+n+' 个账户');
+      }catch(e){
+        let m=String(e.message);
+        if(/access blocked/i.test(m))m='应用未开通营销 API——到 developers.facebook.com 该应用 → 添加产品 → Marketing API → 设置，开通后重试';
+        accErrs.push('钥匙'+(i+1)+'：'+m.slice(0,120));
+      }
     }
   }
   const num=v=>parseFloat(v||0)||0;
@@ -946,7 +953,7 @@ makeTable($('tbl-cc'),
     liveLoaded=true;
     const opts=(arr,id)=>{const cur=$(id).value;$(id).innerHTML='<option value="">全部</option>'+[...new Set(arr)].sort().map(v=>'<option>'+esc(v)+'</option>').join('');$(id).value=cur;};
     opts(liveRows.map(r=>r.acc),'lf-acc'); opts(liveRows.map(r=>r.owner),'lf-owner');
-    noteL.textContent=(errs.length?'部分失败：'+errs.join('；')+' · ':'')+'今天从 0 点到现在的实时数据，约 5 分钟自动刷新；消耗为 Meta 渠道口径，与 Adjust 口径存在正常差异。';
+    noteL.textContent=(errs.length?'钥匙状态：'+errs.join('；')+' · ':'')+'今天从 0 点到现在的实时数据，约 5 分钟自动刷新；消耗为 Meta 渠道口径，与 Adjust 口径存在正常差异。';
     renderLive();
    }catch(e){noteL.textContent='加载失败：'+String(e.message||e).slice(0,200);console.error('live',e);}
   }
@@ -1018,7 +1025,7 @@ makeTable($('tbl-cc'),
     const cur=$('cf2-acc').value;
     $('cf2-acc').innerHTML='<option value="">全部</option>'+[...new Set(crRows.map(r=>r.acc))].sort().map(v=>'<option>'+esc(v)+'</option>').join('');
     $('cf2-acc').value=cur;
-    noteC.textContent=(errs.length?'部分失败：'+errs.join('；')+' · ':'')+'近 7 天素材级表现（Meta 渠道口径），共 '+crRows.length+' 条素材，信号 '+crRows.filter(r=>r.sigs.length).length+' 条。每周给剪辑过一遍"衰减/低效"清单。';
+    noteC.textContent=(errs.length?'钥匙状态：'+errs.join('；')+' · ':'')+'近 7 天素材级表现（Meta 渠道口径），共 '+crRows.length+' 条素材，信号 '+crRows.filter(r=>r.sigs.length).length+' 条。每周给剪辑过一遍"衰减/低效"清单。';
     renderCr();
    }catch(e){noteC.textContent='加载失败：'+String(e.message||e).slice(0,200);console.error('creative',e);}
   }
