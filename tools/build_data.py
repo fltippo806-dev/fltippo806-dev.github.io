@@ -339,8 +339,10 @@ def build(main, camp, camp_hist=None):
 
     # ===== 模型建议 (渠道级 + campaign 级) =====
     suggestions = []
+    w1b = agg(paid, *win(1), keys=["app", "_ch"])   # 昨日渠道消耗
     for b in bench_chs:
         if b["room"] is None: continue
+        if w1b.get((b["app"], b["ch"]), {}).get("network_cost", 0) < 1: continue   # 昨日无消耗 = 渠道已停投, 不出建议(与 campaign 级同规则)
         tag = f'{b["app"]}·{b["ch"]}'
         if b["room"] <= -0.05:
             suggestions.append({"level": "cut", "scope": "渠道", "obj": tag, "cost": b["cost28"],
