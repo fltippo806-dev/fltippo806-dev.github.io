@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ç»„è£…å¹¶åŠ å¯†çœ‹æ¿ç«™ç‚¹ã€‚
-ç”¨æ³•: python3 make_site.py --password 'xxx' [--data data.json] [--template template.html] [--out index.html]
-äº§å‡º: index.html(åŠ å¯†ç™»å½•é¡µ, å¯å…¬å¼€æ‰˜ç®¡) å’Œ plain.html(æœªåŠ å¯†å®Œæ•´çœ‹æ¿, ä¸¥ç¦æäº¤åˆ°ä»“åº“)
-åŠ å¯†: PBKDF2-SHA256(250k) -> AES-256-GCM, ä¸Žé¡µé¢å†… WebCrypto è§£å¯†é€»è¾‘ä¸€ä¸€å¯¹åº”ã€‚
+组装并加密看板站点。
+用法: python3 make_site.py --password 'xxx' [--data data.json] [--template template.html] [--out index.html]
+产出: index.html(加密登录页, 可公开托管) 和 plain.html(未加密完整看板, 严禁提交到仓库)
+加密: PBKDF2-SHA256(250k) -> AES-256-GCM, 与页面内 WebCrypto 解密逻辑一一对应。
 """
 import argparse, base64, json, os, sys, hashlib, gzip
 from pathlib import Path
@@ -63,7 +63,7 @@ LOADER3 = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>æŠ•æ”¾å·¥ä½œå°</title>
+<title>投放工作台</title>
 <style>
 body{margin:0;font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:#F4F6F9;display:flex;align-items:center;justify-content:center;min-height:100vh}
 .box{background:#fff;border:1px solid #E3E8EE;border-radius:12px;padding:34px 38px;width:320px;box-shadow:0 4px 18px rgba(31,78,121,.08)}
@@ -78,11 +78,11 @@ button:disabled{opacity:.6}
 </head>
 <body>
 <div class="box">
-  <h1>æŠ•æ”¾å·¥ä½œå°</h1>
-  <p>è¯·è¾“å…¥ä½ çš„ä¸ªäººå¯†ç ï¼ˆå¯†ç å³èº«ä»½ï¼Œå¤„ç†è®°å½•å°†ä»¥ä½ çš„åä¹‰ç•™ç—•ï¼‰</p>
-  <input type="password" id="pw" placeholder="ä¸ªäººå¯†ç " autofocus>
-  <label><input type="checkbox" id="rem" style="width:auto;margin:0" checked>åœ¨è¿™å°è®¾å¤‡ä¸Šè®°ä½å¯†ç </label>
-  <button id="go">è¿›å…¥å·¥ä½œå°</button>
+  <h1>投放工作台</h1>
+  <p>请输入你的个人密码（密码即身份，处理记录将以你的名义留痕）</p>
+  <input type="password" id="pw" placeholder="个人密码" autofocus>
+  <label><input type="checkbox" id="rem" style="width:auto;margin:0" checked>在这台设备上记住密码</label>
+  <button id="go">进入工作台</button>
   <div class="err" id="err"></div>
 </div>
 <script id="enc" type="application/json">__PAYLOAD__</script>
@@ -116,13 +116,13 @@ async function go(){
   const pw=document.getElementById('pw').value;
   if(!pw)return;
   document.getElementById('go').disabled=true;
-  document.getElementById('err').textContent='è§£é”ä¸­â€¦';
+  document.getElementById('err').textContent='解锁中…';
   try{
     const html=await unlock(pw);
     if(document.getElementById('rem').checked)localStorage.setItem('kb_pw',pw);
     document.open();document.write(html);document.close();
   }catch(e){
-    document.getElementById('err').textContent='å¯†ç ä¸æ­£ç¡®';
+    document.getElementById('err').textContent='密码不正确';
     document.getElementById('go').disabled=false;
   }
 }
@@ -140,7 +140,7 @@ LOADER2 = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>æŠ•æ”¾å·¥ä½œå°</title>
+<title>投放工作台</title>
 <style>
 body{margin:0;font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:#F4F6F9;display:flex;align-items:center;justify-content:center;min-height:100vh}
 .box{background:#fff;border:1px solid #E3E8EE;border-radius:12px;padding:34px 38px;width:320px;box-shadow:0 4px 18px rgba(31,78,121,.08)}
@@ -155,11 +155,11 @@ button:disabled{opacity:.6}
 </head>
 <body>
 <div class="box">
-  <h1>æŠ•æ”¾å·¥ä½œå°</h1>
-  <p>è¯·è¾“å…¥è®¿é—®å¯†ç ï¼ˆæˆå‘˜å¯†ç æˆ–è´Ÿè´£äººå¯†ç ï¼‰</p>
-  <input type="password" id="pw" placeholder="è®¿é—®å¯†ç " autofocus>
-  <label><input type="checkbox" id="rem" style="width:auto;margin:0" checked>åœ¨è¿™å°è®¾å¤‡ä¸Šè®°ä½å¯†ç </label>
-  <button id="go">è¿›å…¥å·¥ä½œå°</button>
+  <h1>投放工作台</h1>
+  <p>请输入访问密码（成员密码或负责人密码）</p>
+  <input type="password" id="pw" placeholder="访问密码" autofocus>
+  <label><input type="checkbox" id="rem" style="width:auto;margin:0" checked>在这台设备上记住密码</label>
+  <button id="go">进入工作台</button>
   <div class="err" id="err"></div>
 </div>
 <script id="enc" type="application/json">__PAYLOAD__</script>
@@ -187,13 +187,13 @@ async function go(){
   const pw=document.getElementById('pw').value;
   if(!pw)return;
   document.getElementById('go').disabled=true;
-  document.getElementById('err').textContent='è§£é”ä¸­â€¦';
+  document.getElementById('err').textContent='解锁中…';
   try{
     const html=await unlock(pw);
     if(document.getElementById('rem').checked)localStorage.setItem('kb_pw',pw);
     document.open();document.write(html);document.close();
   }catch(e){
-    document.getElementById('err').textContent='å¯†ç ä¸æ­£ç¡®';
+    document.getElementById('err').textContent='密码不正确';
     document.getElementById('go').disabled=false;
   }
 }
@@ -211,7 +211,7 @@ LOADER = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>æŠ•æ”¾æ•°æ®çœ‹æ¿</title>
+<title>投放数据看板</title>
 <style>
 body{margin:0;font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:#F4F6F9;display:flex;align-items:center;justify-content:center;min-height:100vh}
 .box{background:#fff;border:1px solid #E3E8EE;border-radius:12px;padding:34px 38px;width:320px;box-shadow:0 4px 18px rgba(31,78,121,.08)}
@@ -226,11 +226,11 @@ button:disabled{opacity:.6}
 </head>
 <body>
 <div class="box">
-  <h1>æŠ•æ”¾æ•°æ®çœ‹æ¿</h1>
-  <p>è¯·è¾“å…¥å›¢é˜Ÿè®¿é—®å¯†ç </p>
-  <input type="password" id="pw" placeholder="è®¿é—®å¯†ç " autofocus>
-  <label><input type="checkbox" id="rem" style="width:auto;margin:0" checked>åœ¨è¿™å°è®¾å¤‡ä¸Šè®°ä½å¯†ç </label>
-  <button id="go">è¿›å…¥çœ‹æ¿</button>
+  <h1>投放数据看板</h1>
+  <p>请输入团队访问密码</p>
+  <input type="password" id="pw" placeholder="访问密码" autofocus>
+  <label><input type="checkbox" id="rem" style="width:auto;margin:0" checked>在这台设备上记住密码</label>
+  <button id="go">进入看板</button>
   <div class="err" id="err"></div>
 </div>
 <script id="enc" type="application/json">__PAYLOAD__</script>
@@ -247,13 +247,13 @@ async function go(){
   const pw=document.getElementById('pw').value;
   if(!pw)return;
   document.getElementById('go').disabled=true;
-  document.getElementById('err').textContent='è§£é”ä¸­â€¦';
+  document.getElementById('err').textContent='解锁中…';
   try{
     const html=await unlock(pw);
     if(document.getElementById('rem').checked)localStorage.setItem('kb_pw',pw);
     document.open();document.write(html);document.close();
   }catch(e){
-    document.getElementById('err').textContent='å¯†ç ä¸æ­£ç¡®';
+    document.getElementById('err').textContent='密码不正确';
     document.getElementById('go').disabled=false;
   }
 }
@@ -268,12 +268,12 @@ if(saved){document.getElementById('pw').value=saved;go().catch(()=>{localStorage
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--password', default='')             # å•å¯†ç æ¨¡å¼(å…¼å®¹)
-    ap.add_argument('--admin-password', default='')       # åŒå¯†ç æ¨¡å¼(å…¼å®¹)
-    ap.add_argument('--users', default='')                # æ¯äººç‹¬ç«‹å¯†ç : "åå­—:å¯†ç [:admin],..."
+    ap.add_argument('--password', default='')             # 单密码模式(兼容)
+    ap.add_argument('--admin-password', default='')       # 双密码模式(兼容)
+    ap.add_argument('--users', default='')                # 每人独立密码: "名字:密码[:admin],..."
     ap.add_argument('--sync-token', default='')
-    ap.add_argument('--meta-tokens', default='')          # Meta åªè¯»ä»¤ç‰Œ, é€—å·åˆ†éš”
-    ap.add_argument('--meta-accounts', default='')        # å¯é€‰: æ‰‹åŠ¨æŒ‡å®šè´¦æˆ·, æ¯æŠŠé’¥åŒ™ä¸€æ®µ(|åˆ†éš”), æ®µå†…é€—å·åˆ†éš” act_ ç¼–å·
+    ap.add_argument('--meta-tokens', default='')          # Meta 只读令牌, 逗号分隔
+    ap.add_argument('--meta-accounts', default='')        # 可选: 手动指定账户, 每把钥匙一段(|分隔), 段内逗号分隔 act_ 编号
     ap.add_argument('--data', default='data.json')
     ap.add_argument('--template', default='template.html')
     ap.add_argument('--out', default='index.html')
@@ -303,13 +303,13 @@ def main():
     if a.meta_accounts:
         plain = plain.replace('__META_ACCOUNTS__', a.meta_accounts)
     assert '__DATA__' not in plain and plain.rstrip().endswith('</html>')
-    # plain è½ç›˜ç‰ˆæŒ‰ç®¡ç†å‘˜è§’è‰²(è‡ªç”¨); åŠ å¯†æ­£æ–‡ä¿ç•™å ä½ç¬¦ç”± loader æŒ‰è§£é”å¯†ç æ³¨å…¥è§’è‰²ä¸Žå§“å
+    # plain 落盘版按管理员角色(自用); 加密正文保留占位符由 loader 按解锁密码注入角色与姓名
     open(a.plain_out, 'w', encoding='utf-8').write(
-        plain.replace('__UAROLE__', 'admin').replace('__UANAME__', 'è´Ÿè´£äºº'))
+        plain.replace('__UAROLE__', 'admin').replace('__UANAME__', '负责人'))
 
     n = 250000
     if a.users:
-        # æ¯äººç‹¬ç«‹å¯†ç : å†…å®¹é’¥åŒ™ K åŠ å¯†æ­£æ–‡(å…ˆ gzip åŽ‹ç¼©); K+èº«ä»½å…ƒæ•°æ® åˆ†åˆ«ç”¨å„äººå¯†ç åŒ…è£…
+        # 每人独立密码: 内容钥匙 K 加密正文(先 gzip 压缩); K+身份元数据 分别用各人密码包装
         K = os.urandom(32)
         piv = os.urandom(12)
         pct = AESGCM(K).encrypt(piv, gzip.compress(plain.encode(), 9), None)
@@ -330,7 +330,7 @@ def main():
         print('OK plain=%d bytes, encrypted index=%d bytes, users=%d' % (len(plain), os.path.getsize(a.out), len(wraps)))
         return
     if a.admin_password:
-        # åŒå¯†ç : éšæœºå†…å®¹é’¥åŒ™ K åŠ å¯†æ­£æ–‡; K åˆ†åˆ«ç”¨æˆå‘˜/è´Ÿè´£äººå¯†ç åŒ…è£…
+        # 双密码: 随机内容钥匙 K 加密正文; K 分别用成员/负责人密码包装
         K = os.urandom(32)
         piv = os.urandom(12)
         pct = AESGCM(K).encrypt(piv, plain.encode(), None)
