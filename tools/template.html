@@ -49,6 +49,7 @@ th .arr{font-size:10px;color:var(--accent)}
 td{padding:7px 10px;border-bottom:1px solid #F0F2F5;white-space:nowrap}
 tr:hover td{background:#F7FAFD}
 td.num{text-align:right;font-variant-numeric:tabular-nums}
+td:has(> .pill){text-align:right}
 .pill{display:inline-block;min-width:50px;text-align:center;padding:1px 7px;border-radius:20px;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums}
 .p-good{background:var(--goodbg);color:var(--good)}.p-warn{background:var(--warnbg);color:var(--warn)}.p-bad{background:var(--badbg);color:var(--bad)}.p-na{color:var(--faint)}.p-n{background:#EEF1F5;color:#475467}
 .chip{display:inline-block;padding:1px 9px;border-radius:20px;font-size:11px;font-weight:700}
@@ -216,7 +217,7 @@ footer{font-size:11px;color:var(--faint);padding-top:14px}
 
   <!-- ===== 投手 ===== -->
   <section data-r="owner" hidden>
-    <div class="note">归属规则（月度复盘 skill 口径）：命名 = 账户前缀_产品_…_操作者，操作者优先——含 yz 归 yz、含 lio 归 lio、二者同现记"归属冲突"；其余人名须唯一命中，多名同现记"未归属"；子账户变体（如 Susanf03 / Susanp / Susan0601-2）并入主名。</div>
+    <div class="note">归属规则（月度复盘 skill 口径）：命名 = 账户前缀_产品_…_操作者，操作者优先——含 yz 归 yz、含 lio 归 lio、二者同现记"归属冲突"；其余人名须唯一命中，多名同现记"未归属"；子账户变体（如 Susanf03 / Susanp / Susan0601-2）并入主名。<br>窗口说明：消耗 / 条数 / CPI / 加权 D0 = 近 14 天；D7 ROAS = 近期成熟批次（cohort ≤ T-7）；D30 ROAS 与回本周期 = 历史成熟月份（其人全部 campaign 汇总，按月末+窗口判成熟）；回本周期 = 批次累计回收追平消耗所需天数，带 ≈ 为 D75 未回本时按 D45→D75 斜率外推，"–" = 样本不足。</div>
     <div class="panel"><table id="tbl-owner"></table></div>
   </section>
 
@@ -413,6 +414,10 @@ function makeTable(el, cols, rows, renderRow){
     if(sortK!=null) rs.sort((a,b)=>{const va=a[sortK]??-1e18, vb=b[sortK]??-1e18; return asc?(va>vb?1:-1):(va<vb?1:-1);});
     el.innerHTML='<thead><tr>'+cols.map(c=>'<th data-k="'+(c.k??'')+'">'+c.t+(sortK===c.k?' <span class="arr">'+(asc?'▲':'▼')+'</span>':'')+'</th>').join('')+'</tr></thead><tbody>'
       +rs.map(renderRow).join('')+'</tbody>';
+    /* 数字列表头右对齐(以首行单元格为准) */
+    const fr=el.querySelector('tbody tr');
+    if(fr){const ths=el.querySelectorAll('th');
+      [...fr.children].forEach((td,i)=>{if(ths[i]&&(td.classList.contains('num')||td.querySelector('.pill')))ths[i].style.textAlign='right';});}
     el.querySelectorAll('th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(!k)return;
       if(sortK===k)asc=!asc;else{sortK=k;asc=false;}render();});
   }
@@ -470,10 +475,18 @@ makeTable($('tbl-cc'),
   const apply=()=>t.setRows(rows.filter(r=>(!$('cf-app').value||r.app===$('cf-app').value)&&(!$('cf-ch').value||r.ch===$('cf-ch').value)&&(!$('cf-owner').value||r.owner===$('cf-owner').value)&&(!$('cf-flag').value||r.flag===$('cf-flag').value)));
   ['cf-app','cf-ch','cf-owner','cf-flag'].forEach(id=>$(id).onchange=apply);
 })();
-makeTable($('tbl-owner'),
-  [{t:'投手'},{t:'消耗(14d)',k:'cost'},{t:'在投条数',k:'n'},{t:'CPI',k:'cpi'},{t:'加权 D0 ROAS',k:'roas_d0'}],
-  DATA.owners,
-  r=>'<tr><td><b>'+esc(r.owner)+'</b></td><td class="num">'+fmt$(r.cost)+'</td><td class="num">'+r.n+'</td><td class="num">'+fmt2(r.cpi)+'</td><td>'+pill(r.roas_d0,null)+'</td></tr>');
+(function(){
+  const pbCell=r=>{
+    if(r.pb==null) return '<span class="pill p-na">–</span>';
+    const txt=(r.pb_est?'≈':'')+r.pb+' 天';
+    const cls=r.pb<=30?'p-good':(r.pb<=75?'p-n':'p-bad');
+    return '<span class="pill '+cls+'">'+txt+'</span>';
+  };
+  makeTable($('tbl-owner'),
+    [{t:'投手'},{t:'消耗(14d)',k:'cost'},{t:'在投条数',k:'n'},{t:'CPI',k:'cpi'},{t:'加权 D0',k:'roas_d0'},{t:'D7 ROAS',k:'roas_d7'},{t:'D30 ROAS',k:'roas_d30'},{t:'回本周期',k:'pb'}],
+    DATA.owners,
+    r=>'<tr><td><b>'+esc(r.owner)+'</b></td><td class="num">'+fmt$(r.cost)+'</td><td class="num">'+r.n+'</td><td class="num">'+fmt2(r.cpi)+'</td><td>'+pill(r.roas_d0,null)+'</td><td>'+pill(r.roas_d7,null)+'</td><td>'+pill(r.roas_d30,1)+'</td><td>'+pbCell(r)+'</td></tr>');
+})();
 /* ===== 基准线 ===== */
 (function(){
   $('bench-ver').textContent=DATA.bench.ver;

@@ -57,6 +57,9 @@ def fetch(token, dims, metrics, period):
     with urllib.request.urlopen(req, timeout=120) as r:
         return json.load(r)["rows"]
 
+CAMP_HIST_METRICS = ("network_cost,revenue_total_d0,revenue_total_d1,revenue_total_d3,"
+                     "revenue_total_d7,revenue_total_d14,revenue_total_d30,revenue_total_d45,revenue_total_d75")
+
 def load(token=None):
     if token:
         end = (dt.datetime.utcnow().date() - dt.timedelta(days=1))
@@ -69,19 +72,28 @@ def load(token=None):
             s = e + dt.timedelta(days=1)
         camp = fetch(token, "day,app,partner_name,campaign_network", CAMP_METRICS,
                      f"{end - dt.timedelta(days=29)}:{end}")
+        mid = end - dt.timedelta(days=130)
+        camp_hist = fetch(token, "month,app,partner_name,campaign_network", CAMP_HIST_METRICS,
+                          f"{end - dt.timedelta(days=262)}:{mid}")
+        camp_hist += fetch(token, "month,app,partner_name,campaign_network", CAMP_HIST_METRICS,
+                           f"{mid + dt.timedelta(days=1)}:{end}")
     else:
         import glob
         main = []
         for f in sorted(glob.glob("main_s*.json")):
             main += json.load(open(f))["rows"]
         camp = json.load(open("camp.json"))["rows"]
-    return main, camp
+        camp_hist = []
+        for f in sorted(glob.glob("camp_hist*.json")):
+            camp_hist += json.load(open(f))["rows"]
+    return main, camp, camp_hist
 
 def f(r, k): return float(r.get(k) or 0)
 
 def D(s): return dt.date.fromisoformat(s[:10])
 
-def build(main, camp):
+def build(main, camp, camp_hist=None):
+    camp_hist = camp_hist or []
     for r in main: r["_d"] = D(r["day"])
     for r in camp: r["_d"] = D(r["day"])
     main = [r for r in main if r["app"] not in EXCLUDE_APPS]
@@ -237,12 +249,16 @@ def build(main, camp):
             cagg[k]["m_cost"] += f(r, "network_cost"); cagg[k]["m_rev7"] += f(r, "revenue_total_d7")
     # 投手归属: 命名前缀解析; 子账户变体并入主名(如 Susanf03/Susanp -> Susan);
     # TT smart+ 等无前缀命名从中段 token 找人名; App 名不算投手
-    app_names = {a.lower() for a in set(r["app"] for r in camp)}
+    app_names = {a.lower() for a in set(r["app"] for r in camp)} | {a.lower() for a in MULT75_APP}
     pref_cost = defaultdict(float)
     for k, a in cagg.items():
         m = re.match(r"^([A-Za-z]+)", (k[0] or "").strip())
         if m and m.group(1).lower() not in app_names:
             pref_cost[m.group(1).capitalize()] += a["network_cost"]
+    for r in camp_hist:
+        m = re.match(r"^([A-Za-z]+)", (r.get("campaign_network") or "").strip())
+        if m and m.group(1).lower() not in app_names:
+            pref_cost[m.group(1).capitalize()] += float(r.get("network_cost") or 0)
     persons = {p for p, c in pref_cost.items() if c >= 100}
     def canon(tok):
         p = tok.capitalize()
@@ -396,6 +412,59 @@ def build(main, camp):
                    "roas_d0": ratio(v["rev0"], v["cost"])} for k, v in owners.items()]
     owner_rows.sort(key=lambda x: -x["cost"])
 
+    # ===== 投手 D7 / D30 / 回本周期 =====
+    # D7: 近期成熟窗 (日级明细中 cohort ≤ T-7)
+    od7 = defaultdict(lambda: [0.0, 0.0])
+    for r in camp:
+        if r["partner_name"] in EXCLUDE_PARTNERS or r["_d"] > end - dt.timedelta(days=7): continue
+        o = owner(r["campaign_network"])
+        od7[o][0] += f(r, "network_cost"); od7[o][1] += f(r, "revenue_total_d7")
+    # 历史月度 (成熟度按月末+dx判断)
+    def month_mature(m, dx):
+        y, mm = int(m[:4]), int(m[5:7])
+        last = dt.date(y, mm, 28)
+        while (last + dt.timedelta(days=1)).month == mm: last += dt.timedelta(days=1)
+        return last + dt.timedelta(days=dx) <= end
+    OFFS = [0, 1, 3, 7, 14, 30, 45, 75]
+    o30 = defaultdict(lambda: [0.0, 0.0])
+    opb = defaultdict(lambda: defaultdict(float))  # 单一批次集(成熟到75)的各节点回收
+    for r in camp_hist:
+        if r["partner_name"] in EXCLUDE_PARTNERS or r["app"] == "Kita": continue
+        mth = r["month"][:7]
+        o = owner(r["campaign_network"])
+        c = float(r.get("network_cost") or 0)
+        if c <= 0: continue
+        if month_mature(mth, 30):
+            o30[o][0] += c; o30[o][1] += float(r.get("revenue_total_d30") or 0)
+        if month_mature(mth, 75):
+            opb[o]["cost"] += c
+            for dx in OFFS:
+                opb[o][f"r{dx}"] += float(r.get(f"revenue_total_d{dx}") or 0)
+    for row in owner_rows:
+        o = row["owner"]
+        c7, r7 = od7.get(o, [0, 0])
+        row["roas_d7"] = ratio(r7, c7) if c7 >= 300 else None
+        c30, r30 = o30.get(o, [0, 0])
+        row["roas_d30"] = ratio(r30, c30) if c30 >= 500 else None
+        pb = opb.get(o)
+        row["pb"] = None; row["pb_est"] = False
+        if pb and pb["cost"] >= 1000:
+            roas = [(dx, pb[f"r{dx}"] / pb["cost"]) for dx in OFFS]
+            hit = None
+            for i in range(1, len(roas)):
+                d0_, r0_ = roas[i - 1]; d1_, r1_ = roas[i]
+                if r0_ < 1 <= r1_:
+                    hit = d0_ + (1 - r0_) / (r1_ - r0_) * (d1_ - d0_); break
+            if roas[0][1] >= 1: hit = 0
+            if hit is not None:
+                row["pb"] = round(hit)
+            else:
+                r45, r75 = roas[-2][1], roas[-1][1]
+                slope = (r75 - r45) / 30
+                if slope > 1e-4:
+                    est = 75 + (1 - r75) / slope
+                    if est <= 365: row["pb"] = round(est); row["pb_est"] = True
+
     return {"updated": dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
             "end": end.isoformat(), "kpi": kpi, "daily": daily, "weekly_d7": weekly,
             "app_channel": app_channel, "apps": apps_tot, "countries": countries,
@@ -413,7 +482,7 @@ def build(main, camp):
 if __name__ == "__main__":
     token = None
     if "--token" in sys.argv: token = sys.argv[sys.argv.index("--token") + 1]
-    main, camp = load(token)
-    data = build(main, camp)
+    main, camp, camp_hist = load(token)
+    data = build(main, camp, camp_hist)
     json.dump(data, open("data.json", "w"), ensure_ascii=False)
     print("data.json written, end =", data["end"], "check:", data["check"])
