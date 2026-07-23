@@ -836,7 +836,16 @@ makeTable($('tbl-cc'),
   if(!TOKENS.length){noteL.textContent='Meta 未配置钥匙。';noteC.textContent='Meta 未配置钥匙。';return;}
   const V='v21.0';
   async function F(path,tok){
-    const r=await fetch('https://graph.facebook.com/'+V+path+(path.includes('?')?'&':'?')+'access_token='+encodeURIComponent(tok));
+    const ac=new AbortController();
+    const timer=setTimeout(()=>ac.abort(),15000);
+    let r;
+    try{
+      r=await fetch('https://graph.facebook.com/'+V+path+(path.includes('?')?'&':'?')+'access_token='+encodeURIComponent(tok),{signal:ac.signal});
+    }catch(e){
+      clearTimeout(timer);
+      throw new Error(e.name==='AbortError'?'请求超时(15秒)——大概率被广告拦截插件挡住(uBlock/AdBlock 默认拦截 facebook 域名)，请对本站关闭拦截或将 graph.facebook.com 加入白名单':'网络请求被拒('+e.message+')——请检查广告拦截插件或网络');
+    }
+    clearTimeout(timer);
     const j=await r.json();
     if(j.error)throw new Error(j.error.message||'API error');
     return j;
@@ -884,9 +893,11 @@ makeTable($('tbl-cc'),
     } else liveTbl.setRows(rows);
   }
   async function loadLive(force){
+   try{
     if(liveLoaded&&!force)return;
-    noteL.textContent='拉取 Meta 实时数据中…';
+    noteL.textContent='拉取 Meta 实时数据中…（第 1 步：发现广告账户）';
     await discover();
+    noteL.textContent='拉取 Meta 实时数据中…（第 2 步：读取 '+ACC.length+' 个账户的今日数据）';
     if(!ACC.length){noteL.textContent='未发现可用广告账户。'+accErrs.join('；');return;}
     liveRows=[]; const errs=[...accErrs];
     await Promise.all(ACC.map(async a=>{
@@ -902,6 +913,7 @@ makeTable($('tbl-cc'),
     opts(liveRows.map(r=>r.acc),'lf-acc'); opts(liveRows.map(r=>r.owner),'lf-owner');
     noteL.textContent=(errs.length?'部分失败：'+errs.join('；')+' · ':'')+'今天从 0 点到现在的实时数据，约 5 分钟自动刷新；消耗为 Meta 渠道口径，与 Adjust 口径存在正常差异。';
     renderLive();
+   }catch(e){noteL.textContent='加载失败：'+String(e.message||e).slice(0,200);console.error('live',e);}
   }
   ['lf-acc','lf-owner'].forEach(id=>$(id).onchange=renderLive);
   $('live-refresh').onclick=()=>loadLive(true);
@@ -920,6 +932,7 @@ makeTable($('tbl-cc'),
     } else crTbl.setRows(rows);
   }
   async function loadCreative(force){
+   try{
     if(crLoaded&&!force)return;
     noteC.textContent='拉取近 7 天素材数据中…';
     await discover();
@@ -972,6 +985,7 @@ makeTable($('tbl-cc'),
     $('cf2-acc').value=cur;
     noteC.textContent=(errs.length?'部分失败：'+errs.join('；')+' · ':'')+'近 7 天素材级表现（Meta 渠道口径），共 '+crRows.length+' 条素材，信号 '+crRows.filter(r=>r.sigs.length).length+' 条。每周给剪辑过一遍"衰减/低效"清单。';
     renderCr();
+   }catch(e){noteC.textContent='加载失败：'+String(e.message||e).slice(0,200);console.error('creative',e);}
   }
   ['cf2-acc','cf2-sig'].forEach(id=>$(id).onchange=renderCr);
   $('cr-refresh').onclick=()=>loadCreative(true);
