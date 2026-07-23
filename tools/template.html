@@ -480,7 +480,7 @@ makeTable($('tbl-cc'),
   const pbCell=r=>{
     if(r.pb==null) return '<span class="pill p-na">–</span>';
     const txt=(r.pb_est?'≈':'')+r.pb+' 天';
-    const cls=r.pb<=30?'p-good':(r.pb<=75?'p-n':'p-bad');
+    const cls=r.pb<=30?'p-good':(r.pb<=45?'p-warn':'p-bad');   // 目标: 30 天内回本
     return '<span class="pill '+cls+'">'+txt+'</span>';
   };
   makeTable($('tbl-owner'),
@@ -514,13 +514,13 @@ makeTable($('tbl-cc'),
   const badC=Y.filter(r=>verdict(r)==='bad').reduce((a,r)=>a+r.cost,0);
   $('y-stats').innerHTML=[['昨日在投 Campaign',Y.length],['昨日消耗',fmt$(totC)],['预计回本消耗占比',totC?Math.round(okC/totC*100)+'%':'–'],['预计亏损消耗',fmt$(badC)]]
     .map(x=>'<div class="bstat"><div class="v" style="font-size:19px">'+x[1]+'</div><div class="l">'+x[0]+'</div></div>').join('');
-  $('y-note').textContent='对 '+DATA.end+'（昨日）每条有消耗（≥$10）的 campaign 用预估模型外推：预测 D7 = 昨日 D0 × D0→D7 倍率，预测 D30/D75 再乘放大系数。单日 D0 波动较大，"样本不足"（消耗<$50 或安装<10）的行仅供参考，勿据此单日止损——止损以建议单（14 天口径）为准。';
+  $('y-note').textContent='对 '+DATA.end+'（昨日）每条有消耗（≥$10）的 campaign 用预估模型外推：预测 D7 = 昨日 D0 × D0→D7 倍率，预测 D30/D75 再乘放大系数；判定按拍板口径——D30 必须回本（D75 仅为利润展望）。单日 D0 波动较大，"样本不足"（消耗<$50 或安装<10）的行仅供参考，勿据此单日止损——止损以建议单（14 天口径）为准。';
   const opts=(arr,id)=>{$(id).innerHTML='<option value="">全部</option>'+[...new Set(arr)].sort().map(v=>'<option>'+esc(v)+'</option>').join('');};
   opts(Y.map(r=>r.app),'yf-app'); opts(Y.map(r=>r.owner),'yf-owner');
   const vchip=r=>{const v=verdict(r);
     return v==='small'?'<span class="pill p-n">样本小</span>':(v==='ok'?'<span class="chip c-green">D30 可回本</span>':'<span class="chip c-red">D30 预计亏 '+Math.round((1-r.p30)*100)+'%</span>');};
   const t=makeTable($('tbl-yday'),
-    [{t:'Campaign'},{t:'App'},{t:'渠道'},{t:'投手'},{t:'昨日消耗',k:'cost'},{t:'安装',k:'installs'},{t:'CPI',k:'cpi'},{t:'昨日 D0',k:'d0'},{t:'预测 D7',k:'p7'},{t:'预测 D30',k:'p30'},{t:'预测 D75',k:'p75'},{t:'判定'}],
+    [{t:'Campaign'},{t:'App'},{t:'渠道'},{t:'投手'},{t:'昨日消耗',k:'cost'},{t:'安装',k:'installs'},{t:'CPI',k:'cpi'},{t:'昨日 D0',k:'d0'},{t:'预测 D7',k:'p7'},{t:'预测 D30',k:'p30'},{t:'D75 展望',k:'p75'},{t:'判定(D30)'}],
     Y,
     r=>'<tr><td title="'+esc(r.name)+'">'+esc(r.name.length>40?r.name.slice(0,38)+'…':r.name)+'</td><td>'+esc(r.app)+'</td><td>'+r.ch+'</td><td>'+esc(r.owner)+'</td><td class="num">'+fmt$(r.cost)+'</td><td class="num">'+r.installs+'</td><td class="num">'+fmt2(r.cpi)+'</td><td>'+pill(r.d0,tgtOf(r.app,r.ch,'d0'))+'</td><td class="num">'+fmt2(r.p7)+'</td><td>'+pill(r.p30,1)+'</td><td class="num">'+fmt2(r.p75)+'</td><td>'+vchip(r)+'</td></tr>');
   const apply=()=>t.setRows(Y.filter(r=>(!$('yf-app').value||r.app===$('yf-app').value)&&(!$('yf-owner').value||r.owner===$('yf-owner').value)&&(!$('yf-v').value||verdict(r)===$('yf-v').value)));
@@ -605,10 +605,11 @@ makeTable($('tbl-cc'),
     .map(x=>'<div class="bstat"><div class="v" style="font-size:17px">'+x[1]+'</div><div class="l">'+x[0]+'</div></div>').join('');
   const apps=Object.keys(MU.apps);
   makeTable($('tbl-mult'),
-    [{t:'App'},{t:'D0→D7 (r)',k:'r70'},{t:'D7→D30',k:'m30'},{t:'D7→D45',k:'m45'},{t:'D7→D75 整体',k:'m75'},{t:'D7→D75 FB'},{t:'D7→D75 GG'},{t:'D7→D75 TT'}],
+    [{t:'App'},{t:'D0→D7 (r)',k:'r70'},{t:'D7→D30 整体',k:'m30'},{t:'D7→D30 FB'},{t:'D7→D30 GG'},{t:'D7→D30 TT'},{t:'D7→D45',k:'m45'},{t:'D7→D75(展望)',k:'m75'}],
     apps.map(a=>({app:a,...MU.apps[a]})),
-    r=>'<tr><td><b>'+esc(r.app)+'</b></td><td class="num">'+fmt2(r.r70)+'</td><td class="num">'+fmt2(r.m30)+'</td><td class="num">'+fmt2(r.m45)+'</td><td class="num"><b>'+fmt2(r.m75)+'</b></td>'
-      +['FB','GG','TT'].map(c=>'<td class="num">'+(MU.chs[r.app+'|'+c]?fmt2(MU.chs[r.app+'|'+c]):'–')+'</td>').join('')+'</tr>');
+    r=>'<tr><td><b>'+esc(r.app)+'</b></td><td class="num">'+fmt2(r.r70)+'</td><td class="num"><b>'+fmt2(r.m30)+'</b></td>'
+      +['FB','GG','TT'].map(c=>'<td class="num">'+(MU.chs30&&MU.chs30[r.app+'|'+c]?fmt2(MU.chs30[r.app+'|'+c]):'–')+'</td>').join('')
+      +'<td class="num">'+fmt2(r.m45)+'</td><td class="num">'+fmt2(r.m75)+'</td></tr>');
   makeTable($('tbl-bt'),
     [{t:'App'},{t:'月份'},{t:'模型预测 D30',k:2},{t:'实际 D30',k:3},{t:'误差'}],
     BT.rows.map(r=>({0:r[0],1:r[1],2:r[2],3:r[3]})),
@@ -648,6 +649,8 @@ makeTable($('tbl-cc'),
   let g='';
   for(let i=0;i<=4;i++){const v=maxV*i/4;g+='<line x1="'+padL+'" y1="'+y(v)+'" x2="'+(W-padR)+'" y2="'+y(v)+'" stroke="#EEF1F5"/><text x="'+(padL-5)+'" y="'+(y(v)+4)+'" font-size="10" fill="#98A2B3" text-anchor="end">'+v.toFixed(1)+'</text>';}
   g+='<line x1="'+padL+'" y1="'+y(1)+'" x2="'+(W-padR)+'" y2="'+y(1)+'" stroke="#C0392B" stroke-dasharray="4 3" opacity="0.5"/>';
+  g+='<line x1="'+x(30)+'" y1="'+padT+'" x2="'+x(30)+'" y2="'+(H-padB)+'" stroke="#1F8A5A" stroke-dasharray="4 3" opacity="0.55"/>'
+    +'<text x="'+(x(30)+4)+'" y="'+(padT+11)+'" font-size="10" fill="#1F8A5A">D30 回本目标点</text>';
   cs.forEach((c,i)=>{
     const pts=c.pts.filter(p=>p.y!=null);
     g+='<polyline fill="none" stroke="'+cols[i%4]+'" stroke-width="2" points="'+pts.map(p=>x(p.x).toFixed(1)+','+y(p.y).toFixed(1)).join(' ')+'"/>';
