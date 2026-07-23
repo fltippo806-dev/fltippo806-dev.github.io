@@ -342,6 +342,30 @@ def build(main, camp):
                 "action": "日预算 +50% 阶梯放量，连续 2 天保持可再加", "why": f'{c["app"]} 三档线（{BENCH_VER}）'})
         else:
             c["flag"] = ""
+    # ===== 昨日全量 campaign 模型预估 =====
+    yday = []
+    yagg = defaultdict(lambda: defaultdict(float))
+    for r in camp:
+        if r["partner_name"] in EXCLUDE_PARTNERS or r["_d"] != end: continue
+        k = (r["campaign_network"], r["app"], r["_ch"])
+        for m in ["network_cost", "installs", "signup_complete_events", "revenue_total_d0"]:
+            yagg[k][m] += f(r, m)
+    for k, a in yagg.items():
+        if a["network_cost"] < 10: continue
+        app = k[1]
+        if app not in MULT75_APP: continue
+        d0 = ratio(a["revenue_total_d0"], a["network_cost"])
+        m75 = MULT75_CH.get((app, k[2])) or MULT75_APP[app]
+        p7 = None if d0 is None else round(d0 * R70_APP[app], 3)
+        yday.append({"name": k[0], "app": app, "ch": k[2], "owner": owner(k[0]),
+                     "cost": round(a["network_cost"], 1), "installs": int(a["installs"]),
+                     "cpi": ratio(a["network_cost"], a["installs"]),
+                     "d0": d0, "p7": p7,
+                     "p30": None if p7 is None else round(p7 * MULT30_APP[app], 3),
+                     "p75": None if p7 is None else round(p7 * m75, 3),
+                     "small": a["network_cost"] < 50 or a["installs"] < 10})
+    yday.sort(key=lambda x: -x["cost"])
+
     order = {"stop": 0, "cut": 1, "watch": 2, "scale": 3}
     suggestions.sort(key=lambda s: (order[s["level"]], -s["cost"]))
     keep = [s for s in suggestions if s["level"] != "scale"][:20]
@@ -377,6 +401,7 @@ def build(main, camp):
             "app_channel": app_channel, "apps": apps_tot, "countries": countries,
             "curves": curves, "campaigns": campaigns, "campaigns_rest": rest_row,
             "owners": owner_rows,
+            "yday": yday,
             "bench": {"ver": BENCH_VER, "apps": bench_apps, "chs": bench_chs,
                       "mult": {"apps": {a: {"r70": R70_APP[a], "m30": MULT30_APP[a],
                                             "m45": MULT45_APP[a], "m75": MULT75_APP[a]} for a in MULT75_APP},
