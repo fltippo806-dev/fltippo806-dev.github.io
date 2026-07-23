@@ -870,20 +870,29 @@ makeTable($('tbl-cc'),
   const TOKENS=RAW.indexOf('__')===0?[]:RAW.split(',').map(s=>s.trim()).filter(Boolean);
   const noteL=$('live-note'), noteC=$('cr-note');
   if(!TOKENS.length){noteL.textContent='Meta 未配置钥匙。';noteC.textContent='Meta 未配置钥匙。';return;}
-  const BASE='https://graph.facebook.com';   // 不锁版本: 由 Meta 按应用自动匹配可用版本
-  async function F(path,tok){
+  const BASE='https://graph.facebook.com';
+  let VER=localStorage.getItem('meta_ver')||'v25.0';   // 营销 API 版本; 遇 #2635 自动升级到 Meta 指定的新版
+  async function F(path,tok,_retried){
     const ac=new AbortController();
     const timer=setTimeout(()=>ac.abort(),15000);
     let r;
     try{
-      r=await fetch(BASE+path+(path.includes('?')?'&':'?')+'access_token='+encodeURIComponent(tok),{signal:ac.signal});
+      r=await fetch(BASE+'/'+VER+path+(path.includes('?')?'&':'?')+'access_token='+encodeURIComponent(tok),{signal:ac.signal});
     }catch(e){
       clearTimeout(timer);
       throw new Error(e.name==='AbortError'?'请求超时(15秒)——大概率被广告拦截插件挡住(uBlock/AdBlock 默认拦截 facebook 域名)，请对本站关闭拦截或将 graph.facebook.com 加入白名单':'网络请求被拒('+e.message+')——请检查广告拦截插件或网络');
     }
     clearTimeout(timer);
     const j=await r.json();
-    if(j.error)throw new Error(j.error.message||'API error');
+    if(j.error){
+      const m=String(j.error.message||'');
+      const up=m.match(/latest version:?\s*(v\d+\.\d+)/i);
+      if(j.error.code===2635&&up&&up[1]!==VER&&!_retried){
+        VER=up[1]; localStorage.setItem('meta_ver',VER);   // 自动跟随 Meta 指定版本重试
+        return F(path,tok,true);
+      }
+      throw new Error(m||'API error');
+    }
     return j;
   }
   /* 投手归属(JS 版, 与数据管道同规则简化) */
@@ -981,7 +990,7 @@ makeTable($('tbl-cc'),
       for(const [lbl,p] of probes){
         out.textContent+='· '+lbl+' → ';
         try{
-          const r=await fetch(BASE+p+'&access_token='+encodeURIComponent(TOKENS[i]));
+          const r=await fetch(BASE+'/'+VER+p+'&access_token='+encodeURIComponent(TOKENS[i]));
           const j=await r.json();
           out.textContent+='HTTP '+r.status+' '+JSON.stringify(j).slice(0,300)+'\n';
         }catch(e){out.textContent+='请求失败: '+String(e.message||e).slice(0,120)+'\n';}
