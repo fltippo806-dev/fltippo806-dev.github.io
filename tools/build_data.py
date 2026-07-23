@@ -356,6 +356,9 @@ def build(main, camp, camp_hist=None):
     for c in campaigns:
         t = bench_apps.get(c["app"])
         if not t or c["roas_d0"] is None: continue
+        if c.get("yday", 0) < 1:      # 昨日无消耗 = 已关停/暂停, 不生成建议也不打信号
+            c["flag"] = ""
+            continue
         m30c = MULT30_CH.get((c["app"], c["ch"])) or MULT30_APP[c["app"]]
         pred = round(c["roas_d0"] * R70_APP[c["app"]] * m30c, 2)
         if c["cost"] >= 100 and c["roas_d0"] < t["stop"]:
