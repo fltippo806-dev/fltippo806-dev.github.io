@@ -926,10 +926,25 @@ makeTable($('tbl-cc'),
         continue;
       }
       try{
-        const j=await F('/me/adaccounts?fields=name,account_id&limit=100',TOKENS[i]);
-        const n=(j.data||[]).length;
-        (j.data||[]).forEach(a=>ACC.push({id:a.id,name:a.name||a.id,tok:TOKENS[i],bm:'BM'+(i+1)}));
-        accErrs.push('钥匙'+(i+1)+'：'+(n?('✓ 发现 '+n+' 个账户'):'连接成功但账户列表为空（可点"诊断"查看原始返回，或让我改用手动指定账户）'));
+        let list=(await F('/me/adaccounts?fields=name,account_id&limit=100',TOKENS[i])).data||[];
+        if(!list.length){   // 直连偶发返回空列表: 稍候重试一次
+          await new Promise(r=>setTimeout(r,1200));
+          list=(await F('/me/adaccounts?fields=name,account_id&limit=100',TOKENS[i])).data||[];
+        }
+        let via='';
+        if(!list.length){   // 仍为空: 从 BM(商务管理平台)兜底捞取名下账户
+          try{
+            const b=await F('/me/businesses?fields=name,owned_ad_accounts.limit(100){name,account_id},client_ad_accounts.limit(100){name,account_id}&limit=50',TOKENS[i]);
+            (b.data||[]).forEach(bm=>{
+              (((bm.owned_ad_accounts||{}).data)||[]).forEach(a=>list.push(a));
+              (((bm.client_ad_accounts||{}).data)||[]).forEach(a=>list.push(a));
+            });
+            if(list.length)via='（经 BM 兜底）';
+          }catch(e2){}
+        }
+        const seen=new Set(ACC.map(a=>a.id)); let n=0;
+        list.forEach(a=>{if(!a||!a.id||seen.has(a.id))return;seen.add(a.id);n++;ACC.push({id:a.id,name:a.name||a.id,tok:TOKENS[i],bm:'BM'+(i+1)});});
+        accErrs.push('钥匙'+(i+1)+'：'+(n?('✓ 发现 '+n+' 个账户'+via):'连接成功但账户列表为空——直连与 BM 兜底均为空，多半是这把钥匙对账户的授权被调整了（点"诊断"看原始返回，或把账户编号发我改用手动指定）'));
       }catch(e){
         accErrs.push('钥匙'+(i+1)+'：'+String(e.message).slice(0,120)+'（当前调用版本 '+VER+'，点"诊断"看原始返回）');
       }
