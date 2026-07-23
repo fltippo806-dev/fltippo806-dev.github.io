@@ -224,6 +224,7 @@ def main():
     ap.add_argument('--users', default='')                # 每人独立密码: "名字:密码[:admin],..."
     ap.add_argument('--sync-token', default='')
     ap.add_argument('--meta-tokens', default='')          # Meta 只读令牌, 逗号分隔
+    ap.add_argument('--meta-accounts', default='')        # 可选: 手动指定账户, 每把钥匙一段(|分隔), 段内逗号分隔 act_ 编号
     ap.add_argument('--data', default='data.json')
     ap.add_argument('--template', default='template.html')
     ap.add_argument('--out', default='index.html')
@@ -241,6 +242,8 @@ def main():
         plain = plain.replace('__SYNC_TOKEN__', a.sync_token)
     if a.meta_tokens:
         plain = plain.replace('__META_TOKENS__', a.meta_tokens)
+    if a.meta_accounts:
+        plain = plain.replace('__META_ACCOUNTS__', a.meta_accounts)
     assert '__DATA__' not in plain and plain.rstrip().endswith('</html>')
     # plain 落盘版按管理员角色(自用); 加密正文保留占位符由 loader 按解锁密码注入角色与姓名
     open(a.plain_out, 'w', encoding='utf-8').write(

@@ -194,6 +194,7 @@ footer{font-size:11px;color:var(--faint);padding-top:14px}
       <label>账户 <select id="lf-acc"><option value="">全部</option></select></label>
       <label>投手 <select id="lf-owner"><option value="">全部</option></select></label>
       <button class="btn-sec" id="live-refresh">立即刷新</button>
+      <button class="btn-sec" id="live-diag">诊断</button>
     </div>
     <div class="panel"><table id="tbl-live"></table></div>
   </section>
@@ -869,13 +870,13 @@ makeTable($('tbl-cc'),
   const TOKENS=RAW.indexOf('__')===0?[]:RAW.split(',').map(s=>s.trim()).filter(Boolean);
   const noteL=$('live-note'), noteC=$('cr-note');
   if(!TOKENS.length){noteL.textContent='Meta 未配置钥匙。';noteC.textContent='Meta 未配置钥匙。';return;}
-  const V='v21.0';
+  const BASE='https://graph.facebook.com';   // 不锁版本: 由 Meta 按应用自动匹配可用版本
   async function F(path,tok){
     const ac=new AbortController();
     const timer=setTimeout(()=>ac.abort(),15000);
     let r;
     try{
-      r=await fetch('https://graph.facebook.com/'+V+path+(path.includes('?')?'&':'?')+'access_token='+encodeURIComponent(tok),{signal:ac.signal});
+      r=await fetch(BASE+path+(path.includes('?')?'&':'?')+'access_token='+encodeURIComponent(tok),{signal:ac.signal});
     }catch(e){
       clearTimeout(timer);
       throw new Error(e.name==='AbortError'?'请求超时(15秒)——大概率被广告拦截插件挡住(uBlock/AdBlock 默认拦截 facebook 域名)，请对本站关闭拦截或将 graph.facebook.com 加入白名单':'网络请求被拒('+e.message+')——请检查广告拦截插件或网络');
@@ -899,21 +900,29 @@ makeTable($('tbl-cc'),
     if(found.size===1)return [...found][0];
     return found.size?'未归属':'未标注';
   }
+  const MANUAL='__META_ACCOUNTS__';   // 可选: 手动指定账户, 每把钥匙一段, | 分隔, 段内逗号分隔 act_ 编号
+  const MACC=MANUAL.indexOf('__')===0?[]:MANUAL.split('|').map(s=>s.split(',').map(x=>x.trim()).filter(Boolean));
   let ACC=null, accErrs=[];
   async function discover(){
     if(ACC)return;
     ACC=[]; accErrs=[];
     for(let i=0;i<TOKENS.length;i++){
+      if(MACC[i]&&MACC[i].length){   // 手动指定优先, 跳过自动发现
+        for(const id of MACC[i]){
+          let nm=id;
+          try{nm=(await F('/'+id+'?fields=name',TOKENS[i])).name||id;}catch(e){}
+          ACC.push({id,name:nm,tok:TOKENS[i],bm:'BM'+(i+1)});
+        }
+        accErrs.push('钥匙'+(i+1)+'：✓ 手动指定 '+MACC[i].length+' 个账户');
+        continue;
+      }
       try{
         const j=await F('/me/adaccounts?fields=name,account_id&limit=100',TOKENS[i]);
         const n=(j.data||[]).length;
         (j.data||[]).forEach(a=>ACC.push({id:a.id,name:a.name||a.id,tok:TOKENS[i],bm:'BM'+(i+1)}));
-        if(!n)accErrs.push('钥匙'+(i+1)+'：连接成功，但名下未分配任何广告账户——到该 BM 的商务管理平台 → 系统用户 → 分配资产 → 勾选广告账户（查看表现）');
-        else accErrs.push('钥匙'+(i+1)+'：✓ 发现 '+n+' 个账户');
+        accErrs.push('钥匙'+(i+1)+'：'+(n?('✓ 发现 '+n+' 个账户'):'连接成功但账户列表为空（可点"诊断"查看原始返回，或让我改用手动指定账户）'));
       }catch(e){
-        let m=String(e.message);
-        if(/access blocked/i.test(m))m='应用未开通营销 API——到 developers.facebook.com 该应用 → 添加产品 → Marketing API → 设置，开通后重试';
-        accErrs.push('钥匙'+(i+1)+'：'+m.slice(0,120));
+        accErrs.push('钥匙'+(i+1)+'：'+String(e.message).slice(0,120)+'（点"诊断"看原始返回）');
       }
     }
   }
@@ -958,7 +967,28 @@ makeTable($('tbl-cc'),
    }catch(e){noteL.textContent='加载失败：'+String(e.message||e).slice(0,200);console.error('live',e);}
   }
   ['lf-acc','lf-owner'].forEach(id=>$(id).onchange=renderLive);
-  $('live-refresh').onclick=()=>loadLive(true);
+  $('live-refresh').onclick=()=>{ACC=null;loadLive(true);};
+  $('live-diag').onclick=async()=>{
+    const bg=document.createElement('div');bg.className='modal-bg';
+    bg.innerHTML='<div class="modal" style="width:760px;max-height:82vh;overflow:auto"><h3>Meta 连接诊断</h3><p>逐把钥匙探测，显示 Meta 的原始返回（已隐去钥匙本身）。把这里的截图发给维护者即可定位问题。</p><div id="diag-out" style="font-size:11.5px;font-family:monospace;white-space:pre-wrap;word-break:break-all"></div><p style="margin-top:12px"><button class="btn-sec" id="diag-close">关闭</button></p></div>';
+    document.body.appendChild(bg);
+    bg.querySelector('#diag-close').onclick=()=>bg.remove();
+    bg.onclick=e=>{if(e.target===bg)bg.remove();};
+    const out=bg.querySelector('#diag-out');
+    const probes=[['身份 /me','/me?fields=id,name'],['账户列表 /me/adaccounts','/me/adaccounts?fields=name,account_id&limit=10'],['商务实体 /me/businesses','/me/businesses?fields=name&limit=5']];
+    for(let i=0;i<TOKENS.length;i++){
+      out.textContent+='══ 钥匙 '+(i+1)+'（…'+TOKENS[i].slice(-6)+'）══\n';
+      for(const [lbl,p] of probes){
+        out.textContent+='· '+lbl+' → ';
+        try{
+          const r=await fetch(BASE+p+'&access_token='+encodeURIComponent(TOKENS[i]));
+          const j=await r.json();
+          out.textContent+='HTTP '+r.status+' '+JSON.stringify(j).slice(0,300)+'\n';
+        }catch(e){out.textContent+='请求失败: '+String(e.message||e).slice(0,120)+'\n';}
+      }
+      out.textContent+='\n';
+    }
+  };
   setInterval(()=>{if(liveLoaded&&!document.querySelector('section[data-r="live"]').hidden)loadLive(true);},300000);
   /* --- 素材分析 --- */
   let crLoaded=false, crTbl=null, crRows=[];
@@ -993,7 +1023,7 @@ makeTable($('tbl-cc'),
             dd.sp+=num(d.spend); dd.imp+=num(d.impressions); dd.cl+=num(d.clicks);
             o.freq=Math.max(o.freq,num(d.frequency));
           });
-          path=j.paging&&j.paging.next?j.paging.next.replace('https://graph.facebook.com/'+V,''):null;
+          path=j.paging&&j.paging.next?j.paging.next.replace(/^https:\/\/graph\.facebook\.com(\/v[\d.]+)?/,''):null;
           if(path)path=path.replace(/([&?])access_token=[^&]*/,'$1').replace(/[&?]$/,'');
         }
       }catch(e){errs.push(a.name+'：'+String(e.message).slice(0,60));}
