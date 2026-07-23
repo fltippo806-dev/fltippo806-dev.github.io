@@ -319,7 +319,7 @@ footer{font-size:11px;color:var(--faint);padding-top:14px}
   <div class="bni" data-r="bench"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/></svg>基准</div>
 </div></nav>
 
-<script>window.UA_ROLE=window.UA_ROLE||'__UAROLE__';</script>
+<script>window.UA_ROLE=window.UA_ROLE||'__UAROLE__';window.UA_NAME=window.UA_NAME||'__UANAME__';</script>
 <script id="data" type="application/json">__DATA__</script>
 <script>
 const DATA = JSON.parse(document.getElementById('data').textContent);
@@ -548,8 +548,10 @@ makeTable($('tbl-cc'),
   let localEntries=[]; try{localEntries=JSON.parse(localStorage.getItem(LKEY)||'[]')}catch(e){}
   let remoteEntries=[], dec={}, rejId=null, mobCol='todo';
   const ROLE=(window.UA_ROLE==='admin')?'admin':'member';
-  let user=localStorage.getItem('ua_user')||'', lastSync=null, syncErr=false, issueNo=null;
-  if(ROLE!=='admin'&&user==='负责人'){user='';localStorage.removeItem('ua_user');}  // 成员密码不可用负责人身份
+  const FIXED=(window.UA_NAME&&window.UA_NAME.indexOf('__')!==0)?window.UA_NAME:'';  // 密码即身份
+  let user=FIXED||localStorage.getItem('ua_user')||'', lastSync=null, syncErr=false, issueNo=null;
+  if(FIXED)localStorage.setItem('ua_user',FIXED);
+  if(!FIXED&&ROLE!=='admin'&&user==='负责人'){user='';localStorage.removeItem('ua_user');}
   const saveLoc=()=>localStorage.setItem(LKEY,JSON.stringify(localEntries));
   const fold=()=>{
     const m={};
@@ -616,6 +618,7 @@ makeTable($('tbl-cc'),
   }
   /* --- 身份 --- */
   function askIdentity(force){
+    if(FIXED)return;             // 独立密码模式: 身份由密码决定, 不可切换
     if(user&&!force)return;
     let names=[...new Set(DATA.owners.map(o=>o.owner).filter(n=>!'未标注,未归属(多名),归属冲突'.includes(n)))];
     if(ROLE==='admin')names=['负责人',...names];   // 仅负责人密码可选"负责人"身份
@@ -633,10 +636,27 @@ makeTable($('tbl-cc'),
     if(!syncOn){el.innerHTML='<span class="sdot err"></span>多人同步未配置，仅本机记录';return;}
     el.innerHTML='<span class="sdot'+(syncErr?' err':'')+'"></span>'
       +(syncErr?'同步失败（网络/权限），已先记在本机，恢复后自动补传':'多人实时同步已开启')
-      +' · 我的身份：<span class="who" id="who-btn">'+esc(user||'未选择')+'</span>'
+      +' · 我的身份：<span class="who" id="who-btn" style="'+(FIXED?'text-decoration:none;cursor:default':'')+'">'+esc(user||'未选择')+'</span>'
       +'<span class="chip '+(ROLE==='admin'?'c-blue':'c-amber')+'" style="background:'+(ROLE==='admin'?'#E3EEF9':'')+'">'+(ROLE==='admin'?'负责人权限':'成员权限')+'</span>'
-      +(lastSync?' · 上次同步 '+lastSync.toTimeString().slice(0,5):'');
-    const wb=document.getElementById('who-btn'); if(wb)wb.onclick=()=>askIdentity(true);
+      +(lastSync?' · 上次同步 '+lastSync.toTimeString().slice(0,5):'')
+      +(ROLE==='admin'?' · <button class="btn-sec" id="btn-log" style="padding:2px 10px">操作日志</button>':'');
+    const wb=document.getElementById('who-btn'); if(wb&&!FIXED)wb.onclick=()=>askIdentity(true);
+    const lb=document.getElementById('btn-log'); if(lb)lb.onclick=showLog;
+  }
+  function showLog(){
+    const sidMap={}; S.forEach(s=>sidMap[s.id]=s);
+    const es=remoteEntries.concat(localEntries).filter(e=>e&&e.sid).sort((a,b)=>b.ts-a.ts);
+    const lbl={ok:'✓ 采纳',no:'✕ 拒绝',undo:'↺ 撤销'};
+    const bg=document.createElement('div'); bg.className='modal-bg';
+    bg.innerHTML='<div class="modal" style="width:720px;max-height:80vh;overflow:auto"><h3>操作日志（'+es.length+' 条 · 仅负责人可见）</h3>'
+      +'<p>本月全部处理记录，按时间倒序；数据来自共享记录本，成员端不可见此入口。</p>'
+      +'<table style="font-size:12px"><thead><tr><th>时间</th><th>操作人</th><th>动作</th><th>对象</th><th>理由</th></tr></thead><tbody>'
+      +es.map(e=>{const s=sidMap[e.sid];
+        return '<tr><td>'+esc(e.t||'')+'</td><td><b>'+esc(e.u||'')+'</b></td><td>'+(lbl[e.s]||esc(e.s))+'</td><td title="'+esc(s?s.obj:e.sid)+'">'+esc(s?(s.obj.length>34?s.obj.slice(0,32)+'…':s.obj):'（往日建议 '+e.sid+'）')+'</td><td>'+esc(e.r||'')+'</td></tr>';}).join('')
+      +'</tbody></table><p style="margin-top:12px"><button class="btn-sec" id="log-close">关闭</button></p></div>';
+    document.body.appendChild(bg);
+    bg.querySelector('#log-close').onclick=()=>bg.remove();
+    bg.onclick=e=>{if(e.target===bg)bg.remove();};
   }
   $('bver2').textContent=DATA.bench.ver;
   const cnt={}; S.forEach(s=>{const o=s.owner||'—';cnt[o]=(cnt[o]||0)+1;});
