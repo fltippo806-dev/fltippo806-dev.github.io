@@ -79,7 +79,7 @@ button:disabled{opacity:.6}
 <body>
 <div class="box">
   <h1>投放工作台</h1>
-  <p>请输入你的个人密码（密码即身份，处理记录将以你的名义留痕）</p>
+  <p>请输入你的个人密码（密码即身份，处理记录将以你的名义留痕）<br><span style="color:#98A2AC">构建 __BUILD_TS__</span></p>
   <input type="password" id="pw" placeholder="个人密码" autofocus>
   <label><input type="checkbox" id="rem" style="width:auto;margin:0" checked>在这台设备上记住密码</label>
   <button id="go">进入工作台</button>
@@ -326,8 +326,9 @@ def main():
         payload = json.dumps({'n': n, 'gz': 1, 'w': wraps,
                               'p': {'i': base64.b64encode(piv).decode(),
                                     'c': base64.b64encode(pct).decode()}})
-        open(a.out, 'w', encoding='utf-8').write(LOADER3.replace('__PAYLOAD__', payload))
-        print('OK plain=%d bytes, encrypted index=%d bytes, users=%d' % (len(plain), os.path.getsize(a.out), len(wraps)))
+        open(a.out, 'w', encoding='utf-8').write(
+            LOADER3.replace('__PAYLOAD__', payload).replace('__BUILD_TS__', build_ts))
+        print('OK plain=%d bytes, encrypted index=%d bytes, users=%d, build=%s' % (len(plain), os.path.getsize(a.out), len(wraps), build_ts))
         return
     if a.admin_password:
         # 双密码: 随机内容钥匙 K 加密正文; K 分别用成员/负责人密码包装

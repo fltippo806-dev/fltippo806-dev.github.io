@@ -142,7 +142,7 @@ footer{font-size:11px;color:var(--faint);padding-top:14px}
     <div class="sitem" data-r="model"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l2.5 2.5M16.5 16.5L19 19M19 5l-2.5 2.5M7.5 16.5L5 19"/></svg>预估模型</div>
     <div class="sitem" data-r="def"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-2zM19 17H6a2 2 0 0 0-2 2"/></svg>口径说明</div>
   </nav>
-  <div class="sfoot">数据 T+1 · 每日 15:00 更新<br><span id="sf-ver"></span></div>
+  <div class="sfoot">数据 T+1 · 每日 15:00 更新<br><span id="sf-ver"></span><br>构建 __BUILD_TS__</div>
 </aside>
 
 <div class="main">
@@ -931,7 +931,7 @@ makeTable($('tbl-cc'),
         (j.data||[]).forEach(a=>ACC.push({id:a.id,name:a.name||a.id,tok:TOKENS[i],bm:'BM'+(i+1)}));
         accErrs.push('钥匙'+(i+1)+'：'+(n?('✓ 发现 '+n+' 个账户'):'连接成功但账户列表为空（可点"诊断"查看原始返回，或让我改用手动指定账户）'));
       }catch(e){
-        accErrs.push('钥匙'+(i+1)+'：'+String(e.message).slice(0,120)+'（点"诊断"看原始返回）');
+        accErrs.push('钥匙'+(i+1)+'：'+String(e.message).slice(0,120)+'（当前调用版本 '+VER+'，点"诊断"看原始返回）');
       }
     }
   }
