@@ -6,7 +6,7 @@
 产出: index.html(加密登录页, 可公开托管) 和 plain.html(未加密完整看板, 严禁提交到仓库)
 加密: PBKDF2-SHA256(250k) -> AES-256-GCM, 与页面内 WebCrypto 解密逻辑一一对应。
 """
-import argparse, base64, json, os, sys, hashlib
+import argparse, base64, json, os, sys, hashlib, gzip
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 LOADER3 = """<!DOCTYPE html>
@@ -53,7 +53,12 @@ async function unlock(pw){
       const meta=JSON.parse(new TextDecoder().decode(raw.slice(32)));
       const ck=await crypto.subtle.importKey('raw',K,{name:'AES-GCM'},false,['decrypt']);
       const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(ENC.p.i)},ck,b64(ENC.p.c));
-      return new TextDecoder().decode(pt).split('__UAROLE__').join(meta.role).split('__UANAME__').join(meta.name);
+      let txt;
+      if(ENC.gz){
+        const ds=new DecompressionStream('gzip');
+        txt=await new Response(new Blob([pt]).stream().pipeThrough(ds)).text();
+      }else{txt=new TextDecoder().decode(pt);}
+      return txt.split('__UAROLE__').join(meta.role).split('__UANAME__').join(meta.name);
     }catch(e){}
   }
   throw 0;
@@ -243,10 +248,10 @@ def main():
 
     n = 250000
     if a.users:
-        # 每人独立密码: 内容钥匙 K 加密正文; K+身份元数据 分别用各人密码包装
+        # 每人独立密码: 内容钥匙 K 加密正文(先 gzip 压缩); K+身份元数据 分别用各人密码包装
         K = os.urandom(32)
         piv = os.urandom(12)
-        pct = AESGCM(K).encrypt(piv, plain.encode(), None)
+        pct = AESGCM(K).encrypt(piv, gzip.compress(plain.encode(), 9), None)
         wraps = []
         for spec in a.users.split(','):
             parts = spec.strip().split(':')
@@ -257,7 +262,7 @@ def main():
             wk = hashlib.pbkdf2_hmac('sha256', pw.encode(), s, n, 32)
             wraps.append({'s': base64.b64encode(s).decode(), 'i': base64.b64encode(i).decode(),
                           'c': base64.b64encode(AESGCM(wk).encrypt(i, K + meta, None)).decode()})
-        payload = json.dumps({'n': n, 'w': wraps,
+        payload = json.dumps({'n': n, 'gz': 1, 'w': wraps,
                               'p': {'i': base64.b64encode(piv).decode(),
                                     'c': base64.b64encode(pct).decode()}})
         open(a.out, 'w', encoding='utf-8').write(LOADER3.replace('__PAYLOAD__', payload))

@@ -75,8 +75,14 @@ def load(token=None):
             e = min(s + dt.timedelta(days=34), end)
             main += fetch(token, "day,app,partner_name,country_code", METRICS, f"{s}:{e}")
             s = e + dt.timedelta(days=1)
-        camp = fetch(token, "day,app,partner_name,campaign_network", CAMP_METRICS,
-                     f"{end - dt.timedelta(days=29)}:{end}")
+        # campaign 日级: 自 2026-03-01 起(滚动上限 210 天), 供"按日预估"页追溯
+        hist_start = max(dt.date(2026, 3, 1), end - dt.timedelta(days=210))
+        camp = []
+        s = hist_start
+        while s <= end:
+            e = min(s + dt.timedelta(days=45), end)
+            camp += fetch(token, "day,app,partner_name,campaign_network", CAMP_METRICS, f"{s}:{e}")
+            s = e + dt.timedelta(days=1)
         mid = end - dt.timedelta(days=130)
         camp_hist = fetch(token, "month,app,partner_name,campaign_network", CAMP_HIST_METRICS,
                           f"{end - dt.timedelta(days=262)}:{mid}")
@@ -88,6 +94,8 @@ def load(token=None):
         for f in sorted(glob.glob("main_s*.json")):
             main += json.load(open(f))["rows"]
         camp = json.load(open("camp.json"))["rows"]
+        for f in sorted(glob.glob("camp_ext*.json")):
+            camp += json.load(open(f))["rows"]
         camp_hist = []
         for f in sorted(glob.glob("camp_hist*.json")):
             camp_hist += json.load(open(f))["rows"]
@@ -367,30 +375,28 @@ def build(main, camp, camp_hist=None):
                 "action": "日预算 +50% 阶梯放量，连续 2 天保持可再加", "why": f'{c["app"]} 三档线（{BENCH_VER}）'})
         else:
             c["flag"] = ""
-    # ===== 昨日全量 campaign 模型预估 =====
-    yday = []
-    yagg = defaultdict(lambda: defaultdict(float))
+    # ===== 按日全量 campaign 预估 (2026-03-01 起可追溯; 紧凑结构, 预测由前端按模型现算) =====
+    yagg = defaultdict(lambda: defaultdict(float))   # (day, name, app, ch) -> 指标
     for r in camp:
-        if r["partner_name"] in EXCLUDE_PARTNERS or r["_d"] != end: continue
-        k = (r["campaign_network"], r["app"], r["_ch"])
-        for m in ["network_cost", "installs", "signup_complete_events", "revenue_total_d0"]:
+        if r["partner_name"] in EXCLUDE_PARTNERS or r["app"] == "Kita": continue
+        if f(r, "network_cost") <= 0: continue
+        k = (r["_d"].isoformat(), r["campaign_network"], r["app"], r["_ch"])
+        for m in ["network_cost", "installs", "revenue_total_d0"]:
             yagg[k][m] += f(r, m)
-    for k, a in yagg.items():
+    cmeta, cidx = [], {}
+    ydays = defaultdict(list)
+    for k, a in sorted(yagg.items()):
         if a["network_cost"] < 10: continue
-        app = k[1]
+        day, name, app, ch = k
         if app not in MULT75_APP: continue
-        d0 = ratio(a["revenue_total_d0"], a["network_cost"])
-        m30 = MULT30_CH.get((app, k[2])) or MULT30_APP[app]
-        m75 = MULT75_CH.get((app, k[2])) or MULT75_APP[app]
-        p7 = None if d0 is None else round(d0 * R70_APP[app], 3)
-        yday.append({"name": k[0], "app": app, "ch": k[2], "owner": owner(k[0]),
-                     "cost": round(a["network_cost"], 1), "installs": int(a["installs"]),
-                     "cpi": ratio(a["network_cost"], a["installs"]),
-                     "d0": d0, "p7": p7,
-                     "p30": None if p7 is None else round(p7 * m30, 3),
-                     "p75": None if p7 is None else round(p7 * m75, 3),
-                     "small": a["network_cost"] < 50 or a["installs"] < 10})
-    yday.sort(key=lambda x: -x["cost"])
+        mk = (name, app, ch)
+        if mk not in cidx:
+            cidx[mk] = len(cmeta)
+            cmeta.append([name, app, ch, owner(name)])
+        d0 = round(a["revenue_total_d0"] / a["network_cost"], 3) if a["network_cost"] else None
+        ydays[day].append([cidx[mk], round(a["network_cost"]), int(a["installs"]), d0])
+    yhist = {"start": min(ydays) if ydays else end.isoformat(),
+             "cmeta": cmeta, "days": dict(ydays)}
 
     order = {"stop": 0, "cut": 1, "watch": 2, "scale": 3}
     suggestions.sort(key=lambda s: (order[s["level"]], -s["cost"]))
@@ -427,7 +433,8 @@ def build(main, camp, camp_hist=None):
     # D7: 近期成熟窗 (日级明细中 cohort ≤ T-7)
     od7 = defaultdict(lambda: [0.0, 0.0])
     for r in camp:
-        if r["partner_name"] in EXCLUDE_PARTNERS or r["_d"] > end - dt.timedelta(days=7): continue
+        if r["partner_name"] in EXCLUDE_PARTNERS: continue
+        if r["_d"] > end - dt.timedelta(days=7) or r["_d"] < end - dt.timedelta(days=34): continue
         o = owner(r["campaign_network"])
         od7[o][0] += f(r, "network_cost"); od7[o][1] += f(r, "revenue_total_d7")
     # 历史月度 (成熟度按月末+dx判断)
@@ -481,7 +488,7 @@ def build(main, camp, camp_hist=None):
             "app_channel": app_channel, "apps": apps_tot, "countries": countries,
             "curves": curves, "campaigns": campaigns, "campaigns_rest": rest_row,
             "owners": owner_rows,
-            "yday": yday,
+            "yhist": yhist,
             "bench": {"ver": BENCH_VER, "apps": bench_apps, "chs": bench_chs,
                       "mult": {"apps": {a: {"r70": R70_APP[a], "m30": MULT30_APP[a],
                                             "m45": MULT45_APP[a], "m75": MULT75_APP[a]} for a in MULT75_APP},

@@ -176,6 +176,9 @@ footer{font-size:11px;color:var(--faint);padding-top:14px}
     <div class="bstats" id="y-stats"></div>
     <div class="note" id="y-note"></div>
     <div class="filters">
+      <label>日期 <button class="btn-sec" id="yd-prev" style="padding:4px 9px">◀</button>
+      <input type="date" id="yf-date" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px">
+      <button class="btn-sec" id="yd-next" style="padding:4px 9px">▶</button></label>
       <label>App <select id="yf-app"></select></label>
       <label>投手 <select id="yf-owner"></select></label>
       <label>判定 <select id="yf-v"><option value="">全部</option><option value="ok">预计回本</option><option value="bad">预计亏损</option><option value="small">样本不足</option></select></label>
@@ -545,26 +548,58 @@ makeTable($('tbl-cc'),
     rows,
     r=>'<tr><td><b>'+esc(r.app)+'</b></td><td class="num">'+fmt2(r.tgt0)+'</td><td class="num" style="color:var(--bad)">'+fmt2(r.stop)+'</td><td class="num" style="color:var(--warn)">'+fmt2(r.watch)+'</td><td class="num" style="color:var(--good)">'+fmt2(r.scale)+'</td><td class="num">'+fmt2(r.tgt7)+'</td><td class="num">'+fmt2(r.tgt30)+'</td></tr>');
 })();
-/* ===== 昨日 Campaign 预估 ===== */
+/* ===== 按日 Campaign 预估 (可追溯) ===== */
 (function(){
-  const Y=DATA.yday||[];
+  const H=DATA.yhist||{cmeta:[],days:{},start:DATA.end};
+  const MU=DATA.bench.mult;
+  let day=DATA.end;
+  const rowsOf=d=>{
+    return (H.days[d]||[]).map(a=>{
+      const [mi,cost,installs,d0]=a;
+      const [name,app,ch,ow]=H.cmeta[mi];
+      const m=MU.apps[app]||{};
+      const m30=(MU.chs30&&MU.chs30[app+'|'+ch])||m.m30;
+      const m75=(MU.chs&&MU.chs[app+'|'+ch])||m.m75;
+      const p7=(d0==null||!m.r70)?null:d0*m.r70;
+      return {name,app,ch,owner:ow,cost,installs,cpi:installs?cost/installs:null,d0,
+              p7,p30:p7!=null&&m30?p7*m30:null,p75:p7!=null&&m75?p7*m75:null,
+              small:cost<50||installs<10};
+    }).sort((a,b)=>b.cost-a.cost);
+  };
+  let Y=rowsOf(day);
   const verdict=r=>r.small?'small':(r.p30!=null&&r.p30>=1?'ok':'bad');
-  const totC=Y.reduce((a,r)=>a+r.cost,0);
-  const okC=Y.filter(r=>verdict(r)==='ok').reduce((a,r)=>a+r.cost,0);
-  const badC=Y.filter(r=>verdict(r)==='bad').reduce((a,r)=>a+r.cost,0);
-  $('y-stats').innerHTML=[['昨日在投 Campaign',Y.length],['昨日消耗',fmt$(totC)],['预计回本消耗占比',totC?Math.round(okC/totC*100)+'%':'–'],['预计亏损消耗',fmt$(badC)]]
-    .map(x=>'<div class="bstat"><div class="v" style="font-size:19px">'+x[1]+'</div><div class="l">'+x[0]+'</div></div>').join('');
-  $('y-note').textContent='对 '+DATA.end+'（昨日）每条有消耗（≥$10）的 campaign 用预估模型外推：预测 D7 = 昨日 D0 × D0→D7 倍率，预测 D30/D75 再乘放大系数；判定按拍板口径——D30 必须回本（D75 仅为利润展望）。单日 D0 波动较大，"样本不足"（消耗<$50 或安装<10）的行仅供参考，勿据此单日止损——止损以建议单（14 天口径）为准。';
-  const opts=(arr,id)=>{$(id).innerHTML='<option value="">全部</option>'+[...new Set(arr)].sort().map(v=>'<option>'+esc(v)+'</option>').join('');};
-  opts(Y.map(r=>r.app),'yf-app'); opts(Y.map(r=>r.owner),'yf-owner');
+  const dsel=$('yf-date');
+  dsel.min=H.start; dsel.max=DATA.end; dsel.value=day;
+  function refresh(){
+    Y=rowsOf(day);
+    const totC=Y.reduce((a,r)=>a+r.cost,0);
+    const okC=Y.filter(r=>verdict(r)==='ok').reduce((a,r)=>a+r.cost,0);
+    const badC=Y.filter(r=>verdict(r)==='bad').reduce((a,r)=>a+r.cost,0);
+    $('y-stats').innerHTML=[[day.slice(5)+' 在投 Campaign',Y.length],['当日消耗',fmt$(totC)],['预计回本消耗占比',totC?Math.round(okC/totC*100)+'%':'–'],['预计亏损消耗',fmt$(badC)]]
+      .map(x=>'<div class="bstat"><div class="v" style="font-size:19px">'+x[1]+'</div><div class="l">'+x[0]+'</div></div>').join('');
+    const opts=(arr,id)=>{const cur=$(id).value;$(id).innerHTML='<option value="">全部</option>'+[...new Set(arr)].sort().map(v=>'<option>'+esc(v)+'</option>').join('');$(id).value=cur;};
+    opts(Y.map(r=>r.app),'yf-app'); opts(Y.map(r=>r.owner),'yf-owner');
+    apply();
+  }
+  $('y-note').textContent='对所选日期每条有消耗（≥$10）的 campaign 用预估模型（'+DATA.bench.ver+'）外推：预测 D7 = 当日 D0 × D0→D7 倍率，预测 D30/D75 再乘放大系数；判定按拍板口径——D30 必须回本（D75 仅为利润展望）。可追溯至 '+H.start+'。注意：历史日期用的也是当前版系数（非当时的），且单日 D0 波动较大，"样本不足"（消耗<$50 或安装<10）仅供参考——止损以建议单（14 天口径）为准。';
   const vchip=r=>{const v=verdict(r);
     return v==='small'?'<span class="pill p-n">样本小</span>':(v==='ok'?'<span class="chip c-green">D30 可回本</span>':'<span class="chip c-red">D30 预计亏 '+Math.round((1-r.p30)*100)+'%</span>');};
   const t=makeTable($('tbl-yday'),
-    [{t:'Campaign'},{t:'App'},{t:'渠道'},{t:'投手'},{t:'昨日消耗',k:'cost'},{t:'安装',k:'installs'},{t:'CPI',k:'cpi'},{t:'昨日 D0',k:'d0'},{t:'预测 D7',k:'p7'},{t:'预测 D30',k:'p30'},{t:'D75 展望',k:'p75'},{t:'判定(D30)'}],
+    [{t:'Campaign'},{t:'App'},{t:'渠道'},{t:'投手'},{t:'当日消耗',k:'cost'},{t:'安装',k:'installs'},{t:'CPI',k:'cpi'},{t:'当日 D0',k:'d0'},{t:'预测 D7',k:'p7'},{t:'预测 D30',k:'p30'},{t:'D75 展望',k:'p75'},{t:'判定(D30)'}],
     Y,
     r=>'<tr><td title="'+esc(r.name)+'">'+esc(r.name.length>40?r.name.slice(0,38)+'…':r.name)+'</td><td>'+esc(r.app)+'</td><td>'+r.ch+'</td><td>'+esc(r.owner)+'</td><td class="num">'+fmt$(r.cost)+'</td><td class="num">'+r.installs+'</td><td class="num">'+fmt2(r.cpi)+'</td><td>'+pill(r.d0,tgtOf(r.app,r.ch,'d0'))+'</td><td class="num">'+fmt2(r.p7)+'</td><td>'+pill(r.p30,1)+'</td><td class="num">'+fmt2(r.p75)+'</td><td>'+vchip(r)+'</td></tr>');
   const apply=()=>t.setRows(Y.filter(r=>(!$('yf-app').value||r.app===$('yf-app').value)&&(!$('yf-owner').value||r.owner===$('yf-owner').value)&&(!$('yf-v').value||verdict(r)===$('yf-v').value)));
   ['yf-app','yf-owner','yf-v'].forEach(id=>$(id).onchange=apply);
+  const shift=n=>{
+    const d=new Date(day+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n);
+    const s=d.toISOString().slice(0,10);
+    if(s<H.start||s>DATA.end)return;
+    day=s; dsel.value=s; refresh();
+  };
+  dsel.onchange=()=>{if(dsel.value>=H.start&&dsel.value<=DATA.end){day=dsel.value;refresh();}};
+  $('yd-prev').onclick=()=>shift(-1);
+  $('yd-next').onclick=()=>shift(1);
+  refresh();
 })();
 /* ===== 建议单工作台（多人同步版） ===== */
 (function(){
