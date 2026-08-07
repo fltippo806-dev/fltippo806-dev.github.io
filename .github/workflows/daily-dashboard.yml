@@ -1,0 +1,141 @@
+name: daily dashboard
+
+on:
+  schedule:
+    # 07:10 UTC 每天，沿用原有的发布节奏。
+    # 注意 Actions 的 cron 在高峰期会排队，实际触发可能晚几分钟到几十分钟。
+    - cron: '10 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # 提交 index.html
+  pages: write      # 显式请求一次 Pages 构建
+
+concurrency:
+  group: daily-dashboard
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # build_data.py 只用标准库；cryptography 仅 make_site.py 需要
+      - name: Install deps
+        run: pip install --quiet --disable-pip-version-check cryptography
+
+      - name: Build data
+        working-directory: tools
+        env:
+          ADJUST_TOKEN: ${{ secrets.ADJUST_TOKEN }}
+        run: python3 build_data.py --token "$ADJUST_TOKEN"
+
+      - name: Build site
+        working-directory: tools
+        env:
+          DASH_USERS: ${{ secrets.DASH_USERS }}
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+          META_TOKENS: ${{ secrets.META_TOKENS }}
+        run: |
+          python3 make_site.py \
+            --users "$DASH_USERS" \
+            --sync-token "$SYNC_TOKEN" \
+            --meta-tokens "$META_TOKENS"
+
+      # 任何一项不通过就让 workflow 失败，绝不提交。
+      # 这一步只输出通过/失败，从不打印任何凭证内容。
+      - name: Verify
+        working-directory: tools
+        env:
+          DASH_USERS: ${{ secrets.DASH_USERS }}
+          META_TOKENS: ${{ secrets.META_TOKENS }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys, datetime
+
+          fail = []
+
+          d = json.load(open('data.json', encoding='utf-8'))
+          end = d.get('end')
+          yesterday = (datetime.datetime.now(datetime.timezone.utc).date()
+                       - datetime.timedelta(days=1)).isoformat()
+          if end != yesterday:
+              fail.append(f'end={end} 不等于昨天(UTC) {yesterday}')
+
+          cost = (d.get('kpi') or {}).get('cur7', {}).get('cost', 0)
+          if not cost or cost <= 0:
+              fail.append(f'kpi.cur7.cost 异常: {cost!r}')
+
+          html = open('index.html', encoding='utf-8').read()
+
+          if 'github_pat_' in html:
+              fail.append('index.html 含 github_pat_ 明文')
+
+          # Meta 令牌: 用前 32 字符作指纹, 足够独特且不会误撞 base64 密文。
+          # 长度不足 32 的值不是有效的 Meta 令牌, 拿去比对只会误报。
+          for i, t in enumerate(x.strip() for x in os.environ['META_TOKENS'].split(',')):
+              if len(t) < 32:
+                  fail.append(f'META_TOKENS #{i+1} 长度异常, 疑似 secret 配置错误')
+              elif t[:32] in html:
+                  fail.append(f'index.html 含 Meta 令牌 #{i+1} 明文')
+
+          # 用户名与密码明文。用户名只查长度 >= 4 的:
+          # 更短的名字(如 yz/lio)会与 base64 密文随机撞串, 每天误报。
+          for entry in os.environ['DASH_USERS'].split(','):
+              parts = entry.split(':')
+              if len(parts) < 2:
+                  continue
+              name, pw = parts[0].strip(), parts[1].strip()
+              if len(name) >= 4 and name in html:
+                  fail.append('index.html 含用户名明文')
+              if pw and pw in html:
+                  fail.append('index.html 含用户密码明文')
+
+          if fail:
+              print('自检未通过:')
+              for f in fail:
+                  print('  -', f)
+              sys.exit(1)
+
+          print(f'自检通过 end={end} cost={cost}')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as fh:
+              fh.write(f'DATA_END={end}\n')
+          PY
+
+      # 只 add index.html。data.json / plain.html 已在 .gitignore,
+      # 这里也不会被 add 到, 双重保险。
+      - name: Commit and push
+        run: |
+          cp tools/index.html index.html
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          if git diff --cached --quiet; then
+            echo '无变化, 跳过提交'
+            echo 'PUSHED=0' >> "$GITHUB_ENV"
+          else
+            git commit -m "daily update ${DATA_END}"
+            git push
+            echo 'PUSHED=1' >> "$GITHUB_ENV"
+          fi
+
+      # GITHUB_TOKEN 推送的 commit 不会触发其他 workflow, 分支模式的
+      # Pages 构建可能因此不启动。显式请求一次, 重复请求无害。
+      - name: Request Pages build
+        if: env.PUSHED == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" \
+            || echo '::warning::Pages 构建请求失败, 若站点未更新请检查 Pages 设置'
+
+      - name: Explain failure
+        if: failure()
+        run: |
+          echo '::error::构建失败。若日志中 build_data.py 报 HTTP 401/403,'
+          echo '::error::说明 Adjust Token 已重置, 请更新仓库 secret ADJUST_TOKEN。'
